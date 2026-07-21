@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import AccountCard from '../../components/accounts/AccountCard'
 import AddAccountModal from '../../components/accounts/AddAccountModal'
 import Button from '../../components/ui/Button'
+import Layout from '../../components/layout/Layout'
 
 interface Account {
   id: string
@@ -86,8 +87,8 @@ export default function Accounts() {
   }
 
   return (
-    <div className="min-h-screen bg-cf-dark-900 text-white">
-      <div className="max-w-6xl mx-auto px-4 py-8">
+    <Layout>
+      <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-cf-orange">Accounts</h1>
@@ -175,6 +176,6 @@ export default function Accounts() {
         onClose={() => setShowAddModal(false)}
         onAdd={handleAddAccount}
       />
-    </div>
+    </Layout>
   )
 }

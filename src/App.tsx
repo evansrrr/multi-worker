@@ -1,13 +1,30 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import Login from './pages/Auth/Login'
+import Setup from './pages/Auth/Setup'
+import Dashboard from './pages/Dashboard/Index'
+import Accounts from './pages/Accounts/Index'
+import Workers from './pages/Workers/Index'
+import PagesComponent from './pages/Pages/Index'
+import KV from './pages/KV/Index'
+import D1 from './pages/D1/Index'
+import Settings from './pages/Settings/Index'
+
 function App() {
   return (
-    <div className="min-h-screen bg-cf-dark-900 text-white">
-      <header className="bg-cf-dark-800 p-4">
-        <h1 className="text-2xl font-bold text-cf-orange">Multi-Worker</h1>
-      </header>
-      <main className="container mx-auto p-4">
-        <p className="text-cf-dark-600">Cloudflare Workers & Pages Management Tool</p>
-      </main>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/setup" element={<Setup />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/accounts" element={<Accounts />} />
+        <Route path="/accounts/:accountId/workers" element={<Workers />} />
+        <Route path="/accounts/:accountId/pages" element={<PagesComponent />} />
+        <Route path="/accounts/:accountId/kv" element={<KV />} />
+        <Route path="/accounts/:accountId/d1" element={<D1 />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </BrowserRouter>
   )
 }
 

@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Layout from '../../components/layout/Layout'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
+import { useTheme } from '../../hooks/useTheme'
 
 type AppearanceMode = 'light' | 'dark' | 'system'
 
@@ -28,42 +29,17 @@ export default function Settings() {
 }
 
 function AppearanceSection() {
-  const [mode, setMode] = useState<AppearanceMode>('system')
+  const { appearance, setAppearance } = useTheme()
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
-  const fetchAppearance = async () => {
-    try {
-      const response = await fetch('/api/settings/appearance')
-      const data = await response.json()
-      if (data.mode) setMode(data.mode)
-    } catch {
-      // ignore
-    }
-  }
-
-  // Load on mount
-  useEffect(() => { fetchAppearance() }, [])
-
   const handleSave = async (newMode: AppearanceMode) => {
-    setMode(newMode)
     setSaving(true)
     setSaved(false)
-    try {
-      const response = await fetch('/api/settings/appearance', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: newMode }),
-      })
-      const data = await response.json()
-      if (data.error) throw new Error(data.error)
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
-    } catch {
-      // ignore - revert not needed since mode is just a preference
-    } finally {
-      setSaving(false)
-    }
+    await setAppearance(newMode)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+    setSaving(false)
   }
 
   return (
@@ -78,14 +54,14 @@ function AppearanceSection() {
             onClick={() => handleSave(option.value)}
             disabled={saving}
             className={`p-4 rounded-lg border-2 transition-all text-left ${
-              mode === option.value
+              appearance === option.value
                 ? 'border-cf-orange bg-cf-orange/10'
                 : 'border-cf-dark-600 hover:border-cf-dark-700 hover:bg-cf-dark-700/50'
             }`}
           >
             <div className="flex items-center gap-2 mb-1">
               <div className={`w-3 h-3 rounded-full ${
-                mode === option.value ? 'bg-cf-orange' : 'bg-cf-dark-600'
+                appearance === option.value ? 'bg-cf-orange' : 'bg-cf-dark-600'
               }`} />
               <span className="text-sm font-medium text-white">{option.label}</span>
             </div>

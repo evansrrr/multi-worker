@@ -1,6 +1,11 @@
 name = "multi-worker-manager"
 compatibility_date = "2024-01-01"
+pages_build_output_dir = "dist"
 
 [[kv_namespaces]]
 binding = "TOOL_DATA"
-id = ""
+id = ""  # Replace with your KV namespace ID after creating it
+
+# Environment variables (optional - can also be set via dashboard)
+# [vars]
+# ENVIRONMENT = "production"

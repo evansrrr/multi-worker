@@ -16,6 +16,7 @@ interface Worker {
 interface WorkerTableProps {
   workers: Worker[]
   onDelete: (name: string) => void
+  onManageBindings: (name: string) => void
   deletingName: string | null
 }
 
@@ -29,7 +30,7 @@ function formatDate(dateStr: string): string {
   })
 }
 
-export default function WorkerTable({ workers, onDelete, deletingName }: WorkerTableProps) {
+export default function WorkerTable({ workers, onDelete, onManageBindings, deletingName }: WorkerTableProps) {
   if (workers.length === 0) {
     return (
       <div className="text-center py-12">
@@ -117,27 +118,49 @@ export default function WorkerTable({ workers, onDelete, deletingName }: WorkerT
                 )}
               </td>
               <td className="py-3 px-4 text-right">
-                <Button
-                  variant="danger"
-                  onClick={() => onDelete(worker.name)}
-                  loading={deletingName === worker.name}
-                  className="text-sm px-3 py-1"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
+                <div className="flex items-center justify-end gap-2">
+                  <Button
+                    variant="secondary"
+                    onClick={() => onManageBindings(worker.name)}
+                    className="text-sm px-3 py-1"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                  Delete
-                </Button>
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-3.37a4.5 4.5 0 00-1.242-7.244l-4.5-4.5a4.5 4.5 0 00-6.364 6.364L4.34 8.374"
+                      />
+                    </svg>
+                    Bindings
+                  </Button>
+                  <Button
+                    variant="danger"
+                    onClick={() => onDelete(worker.name)}
+                    loading={deletingName === worker.name}
+                    className="text-sm px-3 py-1"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
+                    </svg>
+                    Delete
+                  </Button>
+                </div>
               </td>
             </tr>
           ))}

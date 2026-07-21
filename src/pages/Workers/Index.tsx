@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import Layout from '../../components/layout/Layout'
 import WorkerTable from '../../components/workers/WorkerTable'
 import CreateWorkerModal from '../../components/workers/CreateWorkerModal'
+import BindingsEditor from '../../components/workers/BindingsEditor'
 import Button from '../../components/ui/Button'
 
 interface Worker {
@@ -25,6 +26,7 @@ export default function Workers() {
   const [error, setError] = useState('')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [deletingName, setDeletingName] = useState<string | null>(null)
+  const [bindingsWorkerName, setBindingsWorkerName] = useState<string | null>(null)
 
   const fetchWorkers = async () => {
     try {
@@ -137,6 +139,7 @@ export default function Workers() {
             <WorkerTable
               workers={workers}
               onDelete={handleDeleteWorker}
+              onManageBindings={(name) => setBindingsWorkerName(name)}
               deletingName={deletingName}
             />
           </div>
@@ -148,6 +151,14 @@ export default function Workers() {
         onClose={() => setShowCreateModal(false)}
         onCreate={handleCreateWorker}
       />
+
+      {bindingsWorkerName && accountId && (
+        <BindingsEditor
+          accountId={accountId}
+          workerName={bindingsWorkerName}
+          onClose={() => setBindingsWorkerName(null)}
+        />
+      )}
     </Layout>
   )
 }

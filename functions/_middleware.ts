@@ -12,7 +12,7 @@ interface Env {
 const PUBLIC_AUTH_ROUTES = [
   "/api/auth/setup",
   "/api/auth/login",
-  "/api/auth/check",
+  "/api/auth/status",
 ];
 
 export const onRequest: PagesFunction<Env> = async (context) => {

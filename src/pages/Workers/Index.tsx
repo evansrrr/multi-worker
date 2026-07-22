@@ -4,6 +4,7 @@ import Layout from '../../components/layout/Layout'
 import WorkerTable from '../../components/workers/WorkerTable'
 import CreateWorkerModal from '../../components/workers/CreateWorkerModal'
 import BindingsEditor from '../../components/workers/BindingsEditor'
+import WorkerDeployModal from '../../components/workers/WorkerDeployModal'
 import Button from '../../components/ui/Button'
 
 interface Worker {
@@ -27,6 +28,7 @@ export default function Workers() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [deletingName, setDeletingName] = useState<string | null>(null)
   const [bindingsWorkerName, setBindingsWorkerName] = useState<string | null>(null)
+  const [deployWorkerName, setDeployWorkerName] = useState<string | null>(null)
 
   const fetchWorkers = async () => {
     try {
@@ -92,6 +94,24 @@ export default function Workers() {
     }
   }
 
+  const handleDeployWorker = async (name: string, files: File[]) => {
+    const formData = new FormData()
+    files.forEach((file) => {
+      formData.append('files', file)
+    })
+
+    const response = await fetch(`/api/accounts/${accountId}/workers/${name}/deploy`, {
+      method: 'POST',
+      body: formData,
+    })
+
+    const data = await response.json()
+
+    if (data.error) {
+      throw new Error(data.error)
+    }
+  }
+
   return (
     <Layout>
       <div className="max-w-6xl mx-auto">
@@ -140,6 +160,7 @@ export default function Workers() {
               workers={workers}
               onDelete={handleDeleteWorker}
               onManageBindings={(name) => setBindingsWorkerName(name)}
+              onDeploy={(name) => setDeployWorkerName(name)}
               deletingName={deletingName}
             />
           </div>
@@ -157,6 +178,15 @@ export default function Workers() {
           accountId={accountId}
           workerName={bindingsWorkerName}
           onClose={() => setBindingsWorkerName(null)}
+        />
+      )}
+
+      {deployWorkerName && accountId && (
+        <WorkerDeployModal
+          open={!!deployWorkerName}
+          workerName={deployWorkerName}
+          onClose={() => setDeployWorkerName(null)}
+          onDeploy={handleDeployWorker}
         />
       )}
     </Layout>

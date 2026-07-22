@@ -8,6 +8,17 @@ interface Binding {
   [key: string]: unknown
 }
 
+interface KvNamespace {
+  id: string
+  title: string
+  description?: string
+}
+
+interface D1Database {
+  uuid: string
+  name: string
+}
+
 interface BindingsEditorProps {
   accountId: string
   workerName: string
@@ -67,9 +78,12 @@ export default function BindingsEditor({ accountId, workerName, onClose }: Bindi
   const [error, setError] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
+  const [kvNamespaces, setKvNamespaces] = useState<KvNamespace[]>([])
+  const [d1Databases, setD1Databases] = useState<D1Database[]>([])
 
   useEffect(() => {
     fetchBindings()
+    fetchAvailableResources()
   }, [accountId, workerName])
 
   const fetchBindings = async () => {
@@ -86,6 +100,21 @@ export default function BindingsEditor({ accountId, workerName, onClose }: Bindi
       setError(err instanceof Error ? err.message : 'Failed to load bindings')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchAvailableResources = async () => {
+    try {
+      const [kvRes, d1Res] = await Promise.all([
+        fetch(`/api/accounts/${accountId}/kv`),
+        fetch(`/api/accounts/${accountId}/d1`),
+      ])
+      const kvData = await kvRes.json()
+      const d1Data = await d1Res.json()
+      setKvNamespaces(kvData.namespaces || [])
+      setD1Databases(d1Data.databases || [])
+    } catch {
+      // Resources will be empty, manual entry still available
     }
   }
 
@@ -318,6 +347,8 @@ export default function BindingsEditor({ accountId, workerName, onClose }: Bindi
       {showAddModal && (
         <AddBindingModal
           binding={editingIndex !== null ? bindings[editingIndex] : undefined}
+          kvNamespaces={kvNamespaces}
+          d1Databases={d1Databases}
           onAdd={handleAddBinding}
           onClose={() => {
             setShowAddModal(false)
@@ -331,11 +362,13 @@ export default function BindingsEditor({ accountId, workerName, onClose }: Bindi
 
 interface AddBindingModalProps {
   binding?: Binding
+  kvNamespaces: KvNamespace[]
+  d1Databases: D1Database[]
   onAdd: (binding: Binding) => void
   onClose: () => void
 }
 
-function AddBindingModal({ binding, onAdd, onClose }: AddBindingModalProps) {
+function AddBindingModal({ binding, kvNamespaces, d1Databases, onAdd, onClose }: AddBindingModalProps) {
   const [name, setName] = useState(binding?.name || '')
   const [type, setType] = useState(binding?.type || 'kv_namespace')
   const [namespaceId, setNamespaceId] = useState((binding?.namespace_id as string) || '')
@@ -444,25 +477,79 @@ function AddBindingModal({ binding, onAdd, onClose }: AddBindingModalProps) {
           </div>
 
           {type === 'kv_namespace' && (
-            <Input
-              id="namespace-id"
-              label="Namespace ID"
-              placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-              value={namespaceId}
-              onChange={(e) => setNamespaceId(e.target.value)}
-              required
-            />
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-gray-300">
+                KV Namespace
+              </label>
+              {kvNamespaces.length > 0 ? (
+                <select
+                  value={namespaceId}
+                  onChange={(e) => setNamespaceId(e.target.value)}
+                  className="w-full px-3 py-2 bg-cf-dark-800 border border-cf-dark-600 rounded-lg 
+                    text-white 
+                    focus:outline-none focus:ring-2 focus:ring-cf-orange focus:border-transparent"
+                  required
+                >
+                  <option value="">Select a KV namespace...</option>
+                  {kvNamespaces.map((ns) => (
+                    <option key={ns.id} value={ns.id}>
+                      {ns.title} ({ns.id.slice(0, 8)}...)
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Input
+                  id="namespace-id"
+                  placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  value={namespaceId}
+                  onChange={(e) => setNamespaceId(e.target.value)}
+                  required
+                />
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                {kvNamespaces.length > 0 
+                  ? 'Select from available namespaces or enter manually'
+                  : 'Enter the KV namespace ID manually'}
+              </p>
+            </div>
           )}
 
           {type === 'd1' && (
-            <Input
-              id="database-id"
-              label="Database ID"
-              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-              value={databaseId}
-              onChange={(e) => setDatabaseId(e.target.value)}
-              required
-            />
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-gray-300">
+                D1 Database
+              </label>
+              {d1Databases.length > 0 ? (
+                <select
+                  value={databaseId}
+                  onChange={(e) => setDatabaseId(e.target.value)}
+                  className="w-full px-3 py-2 bg-cf-dark-800 border border-cf-dark-600 rounded-lg 
+                    text-white 
+                    focus:outline-none focus:ring-2 focus:ring-cf-orange focus:border-transparent"
+                  required
+                >
+                  <option value="">Select a D1 database...</option>
+                  {d1Databases.map((db) => (
+                    <option key={db.uuid} value={db.uuid}>
+                      {db.name} ({db.uuid.slice(0, 8)}...)
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Input
+                  id="database-id"
+                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  value={databaseId}
+                  onChange={(e) => setDatabaseId(e.target.value)}
+                  required
+                />
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                {d1Databases.length > 0 
+                  ? 'Select from available databases or enter manually'
+                  : 'Enter the D1 database ID manually'}
+              </p>
+            </div>
           )}
 
           {(type === 'env_var' || type === 'plain_text') && (

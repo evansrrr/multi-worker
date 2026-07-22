@@ -17,6 +17,7 @@ interface WorkerTableProps {
   workers: Worker[]
   onDelete: (name: string) => void
   onManageBindings: (name: string) => void
+  onDeploy: (name: string) => void
   deletingName: string | null
 }
 
@@ -30,7 +31,7 @@ function formatDate(dateStr: string): string {
   })
 }
 
-export default function WorkerTable({ workers, onDelete, onManageBindings, deletingName }: WorkerTableProps) {
+export default function WorkerTable({ workers, onDelete, onManageBindings, onDeploy, deletingName }: WorkerTableProps) {
   if (workers.length === 0) {
     return (
       <div className="text-center py-12">
@@ -119,6 +120,26 @@ export default function WorkerTable({ workers, onDelete, onManageBindings, delet
               </td>
               <td className="py-3 px-4 text-right">
                 <div className="flex items-center justify-end gap-2">
+                  <Button
+                    variant="secondary"
+                    onClick={() => onDeploy(worker.name)}
+                    className="text-sm px-3 py-1"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+                      />
+                    </svg>
+                    Deploy
+                  </Button>
                   <Button
                     variant="secondary"
                     onClick={() => onManageBindings(worker.name)}

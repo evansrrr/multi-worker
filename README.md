@@ -24,7 +24,7 @@ Cloudflare Workers & Pages 多账户管理工具。支持管理多个 Cloudflare
 4. **命名空间名称必须为：`TOOL_DATA`**
 5. 点击 **Add**
 
-> **重要**：KV 命名空间名称必须为 `TOOL_DATA`，这是项目预设的绑定名称
+> KV 命名空间名称必须为 `TOOL_DATA`，这是项目预设的绑定名称
 
 #### 步骤 2：部署 Pages 项目
 
@@ -32,13 +32,7 @@ Cloudflare Workers & Pages 多账户管理工具。支持管理多个 Cloudflare
 2. 点击 **Create application**
 3. 选择 **Pages** > **Upload assets**
 4. 输入项目名称（例如 `multi-worker`）
-5. 点击 **Create project**
-
-#### 步骤 3：上传构建产物
-
-1. 进入刚创建的 Pages 项目
-2. 点击 **Uploads**
-3. 上传 `dist` 目录下的所有文件
+5. 上传 `dist` 目录下的所有文件
 
 或者使用命令行上传：
 
@@ -53,7 +47,7 @@ npm run build
 npx wrangler pages deploy dist --project-name=multi-worker
 ```
 
-#### 步骤 4：绑定 KV 命名空间
+#### 步骤 3：绑定 KV 命名空间
 
 1. 进入 Pages 项目的 **Settings** > **Functions** > **KV namespace bindings**
 2. 点击 **Add binding**
@@ -62,7 +56,7 @@ npx wrangler pages deploy dist --project-name=multi-worker
    - **KV namespace**: 选择步骤 1 创建的 `TOOL_DATA`
 4. 点击 **Save**
 
-> **重要**：绑定后需要重新部署才能生效
+> 绑定后需要重新部署才能生效
 
 ### 方式二：Wrangler CLI 部署
 
@@ -102,12 +96,6 @@ npm run build
 npx wrangler pages deploy dist
 ```
 
-## 环境变量
-
-| 变量名 | 说明 | 是否必需 |
-|--------|------|----------|
-| `TOOL_DATA` | KV 命名空间绑定 | 是 |
-
 ### ADMIN_PASSWORD 配置
 
 本工具支持通过环境变量 `ADMIN_PASSWORD` 配置初始管理员密码：
@@ -120,11 +108,10 @@ npx wrangler pages deploy dist
 4. 点击 **Save**
 5. 重新部署项目
 
-> **重要**：
-> - 首次部署时会显示初始化向导，设置管理员密码
-> - 如果配置了 `ADMIN_PASSWORD` 环境变量，将跳过初始化向导直接使用该密码
-> - 密码存储在 KV 中，使用 AES-256-GCM 加密
-> - 会话有效期为 24 小时
+- 首次部署时会显示初始化向导，设置管理员密码
+- 如果配置了 `ADMIN_PASSWORD` 环境变量，将跳过初始化向导直接使用该密码
+- 密码存储在 KV 中，使用 AES-256-GCM 加密
+- 会话有效期为 24 小时
 
 ## 开发
 

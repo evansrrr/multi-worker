@@ -1,5 +1,5 @@
 /**
- * GET /api/auth/check - Check if setup needed or session valid.
+ * GET /api/auth/status - Check if setup needed or session valid.
  */
 
 import { getConfig, getSession } from "../../lib/kv";
@@ -14,7 +14,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const passwordHash = await getConfig(env, "password_hash");
   if (!passwordHash) {
     return new Response(
-      JSON.stringify({ setupRequired: true }),
+      JSON.stringify({ 
+        success: true, 
+        data: { isAuthenticated: false, needsSetup: true } 
+      }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   }
@@ -28,7 +31,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   if (!sessionId) {
     return new Response(
-      JSON.stringify({ authenticated: false }),
+      JSON.stringify({ 
+        success: true, 
+        data: { isAuthenticated: false, needsSetup: false } 
+      }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   }
@@ -36,13 +42,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const accountId = await getSession(env, sessionId);
   if (!accountId) {
     return new Response(
-      JSON.stringify({ authenticated: false }),
+      JSON.stringify({ 
+        success: true, 
+        data: { isAuthenticated: false, needsSetup: false } 
+      }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   }
 
   return new Response(
-    JSON.stringify({ authenticated: true }),
+    JSON.stringify({ 
+      success: true, 
+      data: { isAuthenticated: true, needsSetup: false } 
+    }),
     { status: 200, headers: { "Content-Type": "application/json" } }
   );
 };

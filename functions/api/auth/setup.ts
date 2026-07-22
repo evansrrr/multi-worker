@@ -10,7 +10,6 @@ import { getConfig, setConfig } from "../../lib/kv";
 
 interface Env {
   TOOL_DATA: KVNamespace;
-  ADMIN_PASSWORD?: string;
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -19,15 +18,33 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const existingPassword = await getConfig(env, "password_hash");
   if (existingPassword) {
     return new Response(
-      JSON.stringify({ error: "Password already set" }),
+      JSON.stringify({ 
+        success: false, 
+        error: { code: "ALREADY_SET", message: "Password already set" } 
+      }),
       { status: 400, headers: { "Content-Type": "application/json" } }
     );
   }
 
-  const body = await context.request.json<{ password: string }>();
+  let body: { password?: string };
+  try {
+    body = await context.request.json<{ password?: string }>();
+  } catch {
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: { code: "INVALID_BODY", message: "Invalid request body" } 
+      }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
   if (!body.password || body.password.length < 8) {
     return new Response(
-      JSON.stringify({ error: "Password must be at least 8 characters" }),
+      JSON.stringify({ 
+        success: false, 
+        error: { code: "WEAK_PASSWORD", message: "Password must be at least 8 characters" } 
+      }),
       { status: 400, headers: { "Content-Type": "application/json" } }
     );
   }
@@ -39,7 +56,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   await setConfig(env, "encryption_key", encryptionKey);
 
   return new Response(
-    JSON.stringify({ success: true }),
+    JSON.stringify({ success: true, data: { message: "Setup complete" } }),
     { status: 200, headers: { "Content-Type": "application/json" } }
   );
 };

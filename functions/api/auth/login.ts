@@ -15,15 +15,33 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const passwordHash = await getConfig(env, "password_hash");
   if (!passwordHash) {
     return new Response(
-      JSON.stringify({ error: "No password set. Please complete setup first." }),
+      JSON.stringify({ 
+        success: false, 
+        error: { code: "NO_PASSWORD", message: "No password set. Please complete setup first." } 
+      }),
       { status: 400, headers: { "Content-Type": "application/json" } }
     );
   }
 
-  const body = await context.request.json<{ password: string }>();
+  let body: { password?: string };
+  try {
+    body = await context.request.json<{ password?: string }>();
+  } catch {
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: { code: "INVALID_BODY", message: "Invalid request body" } 
+      }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
   if (!body.password) {
     return new Response(
-      JSON.stringify({ error: "Password is required" }),
+      JSON.stringify({ 
+        success: false, 
+        error: { code: "MISSING_PASSWORD", message: "Password is required" } 
+      }),
       { status: 400, headers: { "Content-Type": "application/json" } }
     );
   }
@@ -31,7 +49,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const valid = await verifyPassword(body.password, passwordHash);
   if (!valid) {
     return new Response(
-      JSON.stringify({ error: "Invalid password" }),
+      JSON.stringify({ 
+        success: false, 
+        error: { code: "INVALID_PASSWORD", message: "Invalid password" } 
+      }),
       { status: 401, headers: { "Content-Type": "application/json" } }
     );
   }
@@ -40,7 +61,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   await setSession(env, sessionId, "admin");
 
   const response = new Response(
-    JSON.stringify({ success: true }),
+    JSON.stringify({ success: true, data: { sessionId } }),
     { status: 200, headers: { "Content-Type": "application/json" } }
   );
 

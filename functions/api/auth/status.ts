@@ -10,7 +10,6 @@ import { hashPassword, generateEncryptionKey } from "../../lib/crypto";
 
 interface Env {
   TOOL_DATA: KVNamespace;
-  ADMIN_PASSWORD?: string;
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -19,12 +18,20 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   let passwordHash = await getConfig(env, "password_hash");
   
   // Auto-setup with ADMIN_PASSWORD if environment variable is set
-  if (!passwordHash && env.ADMIN_PASSWORD) {
-    passwordHash = await hashPassword(env.ADMIN_PASSWORD);
-    const encryptionKey = await generateEncryptionKey();
+  // In Cloudflare Pages, env vars are accessed via context.env
+  if (!passwordHash) {
+    // Try to get ADMIN_PASSWORD from various sources
+    const adminPassword = (env as any).ADMIN_PASSWORD || 
+                         (env as any).admin_password ||
+                         (context as any).function?.env?.ADMIN_PASSWORD;
     
-    await setConfig(env, "password_hash", passwordHash);
-    await setConfig(env, "encryption_key", encryptionKey);
+    if (adminPassword) {
+      passwordHash = await hashPassword(adminPassword);
+      const encryptionKey = await generateEncryptionKey();
+      
+      await setConfig(env, "password_hash", passwordHash);
+      await setConfig(env, "encryption_key", encryptionKey);
+    }
   }
   
   if (!passwordHash) {

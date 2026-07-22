@@ -23,6 +23,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const checkAuth = async () => {
     try {
       const response = await fetch('/api/auth/status')
+      if (!response.ok) {
+        setNeedsSetup(true)
+        return
+      }
       const data = await response.json()
       
       if (data.success) {
@@ -31,7 +35,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       } else {
         setNeedsSetup(true)
       }
-    } catch {
+    } catch (error) {
+      console.error('Auth check failed:', error)
       setNeedsSetup(true)
     } finally {
       setIsLoading(false)
@@ -49,12 +54,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
       body: JSON.stringify({ password }),
     })
     
-    const data = await response.json()
-    if (!data.success) {
+    if (!response.ok) {
+      const data = await response.json()
       throw new Error(data.error?.message || 'Login failed')
     }
     
-    setIsAuthenticated(true)
+    const data = await response.json()
+    if (data.success) {
+      setIsAuthenticated(true)
+    } else {
+      throw new Error(data.error?.message || 'Login failed')
+    }
   }
 
   const setup = async (password: string) => {
@@ -64,13 +74,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
       body: JSON.stringify({ password }),
     })
     
-    const data = await response.json()
-    if (!data.success) {
+    if (!response.ok) {
+      const data = await response.json()
       throw new Error(data.error?.message || 'Setup failed')
     }
     
-    setIsAuthenticated(true)
-    setNeedsSetup(false)
+    const data = await response.json()
+    if (data.success) {
+      setIsAuthenticated(true)
+      setNeedsSetup(false)
+    } else {
+      throw new Error(data.error?.message || 'Setup failed')
+    }
   }
 
   const logout = async () => {

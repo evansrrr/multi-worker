@@ -87,14 +87,26 @@ npx wrangler kv namespace create "TOOL_DATA"
 
 #### 步骤 3：部署
 
+**重要：** 本项目使用 Cloudflare Pages Functions，部署时需要包含 `functions` 目录。
+
 ```bash
-# 开发模式
+# 开发模式（仅前端）
 npm run dev
 
-# 构建并部署
+# 本地测试完整功能（包含 Functions）
 npm run build
-npx wrangler pages deploy dist
+npx wrangler pages dev dist
+
+# 构建并部署到 Cloudflare Pages
+npm run build
+npx wrangler pages deploy
 ```
+
+**注意：** 不要使用 `npx wrangler pages deploy dist`，这只会部署静态文件，不会部署 Functions。
+
+正确的部署命令是 `npx wrangler pages deploy`（不指定目录），它会自动：
+1. 部署 `dist` 目录中的静态文件
+2. 部署 `functions` 目录中的 Cloudflare Pages Functions
 
 ### ADMIN_PASSWORD 配置
 
@@ -106,7 +118,7 @@ npx wrangler pages deploy dist
    - **Variable name**: `ADMIN_PASSWORD`
    - **Value**: 你的管理员密码（至少 8 个字符）
 4. 点击 **Save**
-5. 重新部署项目
+5. **重新部署项目**（环境变量设置后必须重新部署才能生效）
 
 **密码配置方式：**
 
@@ -117,6 +129,13 @@ npx wrangler pages deploy dist
 - **方式二**：通过初始化向导设置
   - 首次访问时显示初始化页面
   - 手动输入密码完成设置
+
+**环境变量生效流程：**
+
+1. 设置 `ADMIN_PASSWORD` 环境变量
+2. 运行 `npm run build` 构建项目
+3. 运行 `npx wrangler pages deploy` 重新部署
+4. 首次访问时，系统会自动使用 `ADMIN_PASSWORD` 完成初始化
 
 **安全说明：**
 

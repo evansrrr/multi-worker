@@ -8,4 +8,5 @@ id = ""  # Replace with your KV namespace ID after creating it
 
 # Environment variables (optional - can also be set via dashboard)
 # [vars]
+# ADMIN_PASSWORD = "your-secure-password"
 # ENVIRONMENT = "production"

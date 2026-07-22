@@ -1,5 +1,8 @@
 /**
  * POST /api/auth/setup - First-time password and encryption key setup.
+ * 
+ * Supports ADMIN_PASSWORD environment variable for initial setup.
+ * If ADMIN_PASSWORD is set and no password exists in KV, it will be used automatically.
  */
 
 import { hashPassword, generateEncryptionKey } from "../../lib/crypto";
@@ -7,6 +10,7 @@ import { getConfig, setConfig } from "../../lib/kv";
 
 interface Env {
   TOOL_DATA: KVNamespace;
+  ADMIN_PASSWORD?: string;
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {

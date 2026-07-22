@@ -2,11 +2,11 @@ name = "multi-worker-manager"
 compatibility_date = "2024-01-01"
 pages_build_output_dir = "dist"
 
+# KV 命名空间绑定 - 部署后在 Dashboard 绑定，或取消注释填入 ID
 [[kv_namespaces]]
 binding = "TOOL_DATA"
-id = ""  # Replace with your KV namespace ID after creating it
+id = "eb833703e2d24b18802eb7de1391fc54"
 
-# Environment variables (optional - can also be set via dashboard)
+# 环境变量 - 可在 Dashboard 设置，或取消注释
 # [vars]
 # ADMIN_PASSWORD = "your-secure-password"
-# ENVIRONMENT = "production"

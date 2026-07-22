@@ -9,8 +9,19 @@ interface Env {
   TOOL_DATA: KVNamespace;
 }
 
-export const onRequestPost: PagesFunction<Env> = async (context) => {
-  const { env } = context;
+export const onRequest: PagesFunction<Env> = async (context) => {
+  const { env, request } = context;
+
+  // Only allow POST method
+  if (request.method !== "POST") {
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: { code: "METHOD_NOT_ALLOWED", message: "Method not allowed" } 
+      }),
+      { status: 405, headers: { "Content-Type": "application/json" } }
+    );
+  }
 
   const passwordHash = await getConfig(env, "password_hash");
   if (!passwordHash) {
@@ -25,7 +36,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   let body: { password?: string };
   try {
-    body = await context.request.json<{ password?: string }>();
+    body = await request.json<{ password?: string }>();
   } catch {
     return new Response(
       JSON.stringify({ 

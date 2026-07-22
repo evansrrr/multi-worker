@@ -12,13 +12,23 @@ interface Env {
   TOOL_DATA: KVNamespace;
 }
 
-export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const { env } = context;
+export const onRequest: PagesFunction<Env> = async (context) => {
+  const { env, request } = context;
+
+  // Only allow GET method
+  if (request.method !== "GET") {
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: { code: "METHOD_NOT_ALLOWED", message: "Method not allowed" } 
+      }),
+      { status: 405, headers: { "Content-Type": "application/json" } }
+    );
+  }
 
   let passwordHash = await getConfig(env, "password_hash");
   
   // Auto-setup with ADMIN_PASSWORD if environment variable is set
-  // In Cloudflare Pages, env vars are accessed via context.env
   if (!passwordHash) {
     // Try to get ADMIN_PASSWORD from various sources
     const adminPassword = (env as any).ADMIN_PASSWORD || 
@@ -44,7 +54,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     );
   }
 
-  const cookieHeader = context.request.headers.get("Cookie") || "";
+  const cookieHeader = request.headers.get("Cookie") || "";
   const sessionId = cookieHeader
     .split(";")
     .map((c) => c.trim())

@@ -8,10 +8,21 @@ interface Env {
   TOOL_DATA: KVNamespace;
 }
 
-export const onRequestPost: PagesFunction<Env> = async (context) => {
-  const { env } = context;
+export const onRequest: PagesFunction<Env> = async (context) => {
+  const { env, request } = context;
 
-  const cookieHeader = context.request.headers.get("Cookie") || "";
+  // Only allow POST method
+  if (request.method !== "POST") {
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: { code: "METHOD_NOT_ALLOWED", message: "Method not allowed" } 
+      }),
+      { status: 405, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  const cookieHeader = request.headers.get("Cookie") || "";
   const sessionId = cookieHeader
     .split(";")
     .map((c) => c.trim())

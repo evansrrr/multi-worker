@@ -105,3 +105,11 @@ export interface AuthState {
 }
 
 export type Appearance = 'light' | 'dark' | 'system'
+
+export interface ResourceItem {
+  name: string
+  type: 'worker' | 'pages'
+  accountId: string
+  accountName: string
+  modifiedOn: string
+}

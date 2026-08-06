@@ -108,9 +108,9 @@ export default function Dashboard() {
 
   const handleRowClick = (resource: ResourceItem) => {
     if (resource.type === 'worker') {
-      navigate(`/accounts/${resource.accountId}/workers`)
+      navigate(`/accounts/${resource.accountId}/workers/${resource.name}`)
     } else {
-      navigate(`/accounts/${resource.accountId}/pages`)
+      navigate(`/accounts/${resource.accountId}/pages/${resource.name}`)
     }
   }
 

@@ -8,6 +8,7 @@ import Setup from './pages/Auth/Setup'
 import Dashboard from './pages/Dashboard/Index'
 import Accounts from './pages/Accounts/Index'
 import Workers from './pages/Workers/Index'
+import WorkerDetail from './pages/Workers/Detail'
 import PagesComponent from './pages/Pages/Index'
 import KV from './pages/KV/Index'
 import D1 from './pages/D1/Index'
@@ -93,6 +94,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Workers />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/accounts/:accountId/workers/:workerName"
+        element={
+          <ProtectedRoute>
+            <WorkerDetail />
           </ProtectedRoute>
         }
       />

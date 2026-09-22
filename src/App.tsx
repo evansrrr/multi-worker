@@ -10,6 +10,7 @@ import Accounts from './pages/Accounts/Index'
 import Workers from './pages/Workers/Index'
 import WorkerDetail from './pages/Workers/Detail'
 import PagesComponent from './pages/Pages/Index'
+import PagesDetail from './pages/Pages/Detail'
 import KV from './pages/KV/Index'
 import D1 from './pages/D1/Index'
 import Settings from './pages/Settings/Index'
@@ -110,6 +111,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <PagesComponent />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/accounts/:accountId/pages/:projectName"
+        element={
+          <ProtectedRoute>
+            <PagesDetail />
           </ProtectedRoute>
         }
       />

@@ -12,11 +12,13 @@ export default function AddAccountModal({ open, onClose, onAdd }: AddAccountModa
   const [token, setToken] = useState('')
   const [name, setName] = useState('')
   const [error, setError] = useState('')
+  const [hint, setHint] = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setHint('')
     setLoading(true)
 
     try {
@@ -25,7 +27,19 @@ export default function AddAccountModal({ open, onClose, onAdd }: AddAccountModa
       setName('')
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add account')
+      if (err instanceof Error) {
+        // Try to parse hint from error message
+        const msg = err.message
+        const hintMatch = msg.match(/hint:\s*(.+)/i)
+        if (hintMatch && hintMatch[1]) {
+          setHint(hintMatch[1])
+          setError(msg.replace(/hint:\s*.+/i, '').trim())
+        } else {
+          setError(msg)
+        }
+      } else {
+        setError('Failed to add account')
+      }
     } finally {
       setLoading(false)
     }
@@ -36,6 +50,7 @@ export default function AddAccountModal({ open, onClose, onAdd }: AddAccountModa
       setToken('')
       setName('')
       setError('')
+      setHint('')
       onClose()
     }
   }
@@ -92,8 +107,24 @@ export default function AddAccountModal({ open, onClose, onAdd }: AddAccountModa
             autoFocus
           />
 
+          {hint && (
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+              <p className="text-xs text-blue-400">
+                <span className="font-semibold">Tip:</span> {hint}
+              </p>
+              <a 
+                href="https://dash.cloudflare.com/profile/api-tokens" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-xs text-blue-400 underline hover:text-blue-300 mt-1 inline-block"
+              >
+                Create API Token →
+              </a>
+            </div>
+          )}
+
           <p className="text-xs text-gray-500">
-            Your token will be encrypted and stored securely. We'll verify it has the required permissions.
+            Your token will be encrypted and stored securely. Required permissions: Account → Workers (Edit) or All Resources.
           </p>
 
           <div className="flex gap-3 pt-2">

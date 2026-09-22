@@ -1,0 +1,333 @@
+{
+  "routes": [
+    {
+      "routePath": "/api/accounts/:id/kv/:namespace_id/keys/:key",
+      "mountPath": "/api/accounts/:id/kv/:namespace_id/keys",
+      "method": "DELETE",
+      "module": [
+        "api/accounts/[id]/kv/[namespace_id]/keys/[key].ts:onRequestDelete"
+      ]
+    },
+    {
+      "routePath": "/api/accounts/:id/kv/:namespace_id/keys/:key",
+      "mountPath": "/api/accounts/:id/kv/:namespace_id/keys",
+      "method": "GET",
+      "module": [
+        "api/accounts/[id]/kv/[namespace_id]/keys/[key].ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/accounts/:id/kv/:namespace_id/keys/:key",
+      "mountPath": "/api/accounts/:id/kv/:namespace_id/keys",
+      "method": "PUT",
+      "module": [
+        "api/accounts/[id]/kv/[namespace_id]/keys/[key].ts:onRequestPut"
+      ]
+    },
+    {
+      "routePath": "/api/accounts/:id/d1/:database_id/query",
+      "mountPath": "/api/accounts/:id/d1/:database_id",
+      "method": "POST",
+      "module": [
+        "api/accounts/[id]/d1/[database_id]/query.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/accounts/:id/d1/:database_id/tables",
+      "mountPath": "/api/accounts/:id/d1/:database_id",
+      "method": "GET",
+      "module": [
+        "api/accounts/[id]/d1/[database_id]/tables.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/accounts/:id/kv/:namespace_id/keys",
+      "mountPath": "/api/accounts/:id/kv/:namespace_id",
+      "method": "GET",
+      "module": [
+        "api/accounts/[id]/kv/[namespace_id]/keys.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/accounts/:id/pages/:name/deploy",
+      "mountPath": "/api/accounts/:id/pages/:name",
+      "method": "POST",
+      "module": [
+        "api/accounts/[id]/pages/[name]/deploy.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/accounts/:id/workers/:name/bindings",
+      "mountPath": "/api/accounts/:id/workers/:name/bindings",
+      "method": "GET",
+      "module": [
+        "api/accounts/[id]/workers/[name]/bindings/index.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/accounts/:id/workers/:name/bindings",
+      "mountPath": "/api/accounts/:id/workers/:name/bindings",
+      "method": "PUT",
+      "module": [
+        "api/accounts/[id]/workers/[name]/bindings/index.ts:onRequestPut"
+      ]
+    },
+    {
+      "routePath": "/api/accounts/:id/workers/:name/deploy",
+      "mountPath": "/api/accounts/:id/workers/:name",
+      "method": "POST",
+      "module": [
+        "api/accounts/[id]/workers/[name]/deploy.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/accounts/:id/workers/:name/settings",
+      "mountPath": "/api/accounts/:id/workers/:name",
+      "method": "GET",
+      "module": [
+        "api/accounts/[id]/workers/[name]/settings.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/accounts/:id/d1/:database_id",
+      "mountPath": "/api/accounts/:id/d1/:database_id",
+      "method": "DELETE",
+      "module": [
+        "api/accounts/[id]/d1/[database_id]/index.ts:onRequestDelete"
+      ]
+    },
+    {
+      "routePath": "/api/accounts/:id/kv/:namespace_id",
+      "mountPath": "/api/accounts/:id/kv/:namespace_id",
+      "method": "DELETE",
+      "module": [
+        "api/accounts/[id]/kv/[namespace_id]/index.ts:onRequestDelete"
+      ]
+    },
+    {
+      "routePath": "/api/accounts/:id/pages/:name",
+      "mountPath": "/api/accounts/:id/pages",
+      "method": "DELETE",
+      "module": [
+        "api/accounts/[id]/pages/[name].ts:onRequestDelete"
+      ]
+    },
+    {
+      "routePath": "/api/accounts/:id/pages/:name",
+      "mountPath": "/api/accounts/:id/pages/:name",
+      "method": "GET",
+      "module": [
+        "api/accounts/[id]/pages/[name]/index.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/accounts/:id/workers/:name",
+      "mountPath": "/api/accounts/:id/workers",
+      "method": "DELETE",
+      "module": [
+        "api/accounts/[id]/workers/[name].ts:onRequestDelete"
+      ]
+    },
+    {
+      "routePath": "/api/accounts/:id/workers/:name",
+      "mountPath": "/api/accounts/:id/workers/:name",
+      "method": "GET",
+      "module": [
+        "api/accounts/[id]/workers/[name]/index.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/accounts/:id/d1",
+      "mountPath": "/api/accounts/:id/d1",
+      "method": "GET",
+      "module": [
+        "api/accounts/[id]/d1/index.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/accounts/:id/d1",
+      "mountPath": "/api/accounts/:id/d1",
+      "method": "POST",
+      "module": [
+        "api/accounts/[id]/d1/index.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/accounts/:id/kv",
+      "mountPath": "/api/accounts/:id/kv",
+      "method": "GET",
+      "module": [
+        "api/accounts/[id]/kv/index.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/accounts/:id/kv",
+      "mountPath": "/api/accounts/:id/kv",
+      "method": "POST",
+      "module": [
+        "api/accounts/[id]/kv/index.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/accounts/:id/pages",
+      "mountPath": "/api/accounts/:id/pages",
+      "method": "GET",
+      "module": [
+        "api/accounts/[id]/pages/index.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/accounts/:id/pages",
+      "mountPath": "/api/accounts/:id/pages",
+      "method": "POST",
+      "module": [
+        "api/accounts/[id]/pages/index.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/accounts/:id/verify",
+      "mountPath": "/api/accounts/:id",
+      "method": "POST",
+      "module": [
+        "api/accounts/[id]/verify.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/accounts/:id/workers",
+      "mountPath": "/api/accounts/:id/workers",
+      "method": "GET",
+      "module": [
+        "api/accounts/[id]/workers/index.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/accounts/:id/workers",
+      "mountPath": "/api/accounts/:id/workers",
+      "method": "POST",
+      "module": [
+        "api/accounts/[id]/workers/index.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/batch/delete",
+      "mountPath": "/api/batch",
+      "method": "POST",
+      "module": [
+        "api/batch/delete.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/batch/deploy",
+      "mountPath": "/api/batch",
+      "method": "POST",
+      "module": [
+        "api/batch/deploy.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/settings/appearance",
+      "mountPath": "/api/settings",
+      "method": "GET",
+      "module": [
+        "api/settings/appearance.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/settings/appearance",
+      "mountPath": "/api/settings",
+      "method": "PUT",
+      "module": [
+        "api/settings/appearance.ts:onRequestPut"
+      ]
+    },
+    {
+      "routePath": "/api/settings/password",
+      "mountPath": "/api/settings",
+      "method": "PUT",
+      "module": [
+        "api/settings/password.ts:onRequestPut"
+      ]
+    },
+    {
+      "routePath": "/api/auth/login",
+      "mountPath": "/api/auth",
+      "method": "",
+      "module": [
+        "api/auth/login.ts:onRequest"
+      ]
+    },
+    {
+      "routePath": "/api/auth/logout",
+      "mountPath": "/api/auth",
+      "method": "",
+      "module": [
+        "api/auth/logout.ts:onRequest"
+      ]
+    },
+    {
+      "routePath": "/api/auth/setup",
+      "mountPath": "/api/auth",
+      "method": "",
+      "module": [
+        "api/auth/setup.ts:onRequest"
+      ]
+    },
+    {
+      "routePath": "/api/auth/status",
+      "mountPath": "/api/auth",
+      "method": "",
+      "module": [
+        "api/auth/status.ts:onRequest"
+      ]
+    },
+    {
+      "routePath": "/api/accounts/:id",
+      "mountPath": "/api/accounts",
+      "method": "DELETE",
+      "module": [
+        "api/accounts/[id].ts:onRequestDelete"
+      ]
+    },
+    {
+      "routePath": "/api/accounts",
+      "mountPath": "/api/accounts",
+      "method": "GET",
+      "module": [
+        "api/accounts/index.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/accounts",
+      "mountPath": "/api/accounts",
+      "method": "POST",
+      "module": [
+        "api/accounts/index.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/resources",
+      "mountPath": "/api/resources",
+      "method": "GET",
+      "module": [
+        "api/resources/index.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/test",
+      "mountPath": "/api",
+      "method": "",
+      "module": [
+        "api/test.ts:onRequest"
+      ]
+    },
+    {
+      "routePath": "/",
+      "mountPath": "/",
+      "method": "",
+      "middleware": [
+        "_middleware.ts:onRequest"
+      ]
+    }
+  ],
+  "baseURL": "/"
+}

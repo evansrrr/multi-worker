@@ -6,7 +6,6 @@
 import {
   getAccounts,
   setAccount,
-  getAccount,
   getConfig,
   setConfig,
   type Account,
@@ -44,25 +43,60 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     );
   }
 
-  // Verify token works by calling Cloudflare API
-  const verifyResponse = await fetch(`${CF_API_BASE}/user`, {
+  const token = body.token.trim();
+
+  // Try to verify as API Token first (Bearer auth)
+  let verifyResponse = await fetch(`${CF_API_BASE}/user`, {
     headers: {
-      Authorization: `Bearer ${body.token}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
   });
 
-  const verifyData = await verifyResponse.json<{
+  let verifyData = await verifyResponse.json<{
     success: boolean;
     result?: { email: string };
     errors?: Array<{ message: string }>;
   }>();
 
-  if (!verifyData.success) {
+  let isApiToken = verifyData.success;
+
+  // If Bearer auth failed, it might be a Global API Key
+  // Global API Key requires X-Auth-Email and X-Auth-Key headers
+  // But we can't verify without email, so try /accounts endpoint directly
+  if (!isApiToken) {
+    // Try calling /accounts with the token - if it works, it's a valid credential
+    const accountsResponse = await fetch(`${CF_API_BASE}/accounts`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    const accountsData = await accountsResponse.json<{
+      success: boolean;
+      result?: Array<{ id: string; name: string; type: string }>;
+      errors?: Array<{ message: string }>;
+    }>();
+
+    if (accountsData.success && accountsData.result?.length) {
+      // Token works for API calls, use it
+      isApiToken = true;
+      verifyData = {
+        success: true,
+        result: { email: "" },
+      };
+    }
+  }
+
+  if (!isApiToken || !verifyData.success) {
     const errorMessage =
       verifyData.errors?.[0]?.message || "Invalid token";
     return new Response(
-      JSON.stringify({ error: `Token verification failed: ${errorMessage}` }),
+      JSON.stringify({ 
+        error: `Token verification failed: ${errorMessage}`,
+        hint: "Please create an API Token at https://dash.cloudflare.com/profile/api-tokens with 'Edit Cloudflare Workers' or 'All Resources' permissions"
+      }),
       { status: 400, headers: { "Content-Type": "application/json" } }
     );
   }
@@ -70,7 +104,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   // Get account details
   const accountsResponse = await fetch(`${CF_API_BASE}/accounts`, {
     headers: {
-      Authorization: `Bearer ${body.token}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
   });
@@ -86,7 +120,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   if (!accountsData.success || !accountsData.result?.length) {
     return new Response(
-      JSON.stringify({ error: "No accounts found for this token" }),
+      JSON.stringify({ 
+        error: "No accounts found for this token",
+        hint: "Make sure your token has 'Account - Workers' or 'All Resources' permissions"
+      }),
       { status: 400, headers: { "Content-Type": "application/json" } }
     );
   }
@@ -102,7 +139,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 
   // Encrypt the token
-  const { encrypted, iv } = await encryptData(body.token, encryptionKey);
+  const { encrypted, iv } = await encryptData(token, encryptionKey);
 
   const account: Account = {
     id: cfAccount.id,

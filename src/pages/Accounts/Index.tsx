@@ -49,7 +49,9 @@ export default function Accounts() {
     const data = await response.json()
 
     if (data.error) {
-      throw new Error(data.error)
+      // Include hint in error message if available
+      const errorMsg = data.hint ? `${data.error} hint: ${data.hint}` : data.error
+      throw new Error(errorMsg)
     }
 
     if (data.account) {

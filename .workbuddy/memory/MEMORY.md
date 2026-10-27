@@ -32,5 +32,15 @@ Cloudflare Workers/Pages 多账户管理工具。前端 React 18 + Vite + Tailwi
 **已知未做**（待用户排期）：
 - Pages Direct Upload 5 步协议（upload-token → check-missing → upload → upsert-hashes → deployment）未实现；目前 pages 部署只发 POST /deployments，**assets 未上传可能仍失败**。属 F 系列补全。
 - `pages/[name]/deploy.ts` 的 manifest 也是 `{hash,size}` 错格式（与 batch 同病），阶段1 未改（用户选择只修 batch）。
-- eslint.config.js 缺失（`npm run lint` 报错）。
-- 阶段2（H1 安全 + M8/M9/M10）、阶段3（H8/H9 主题 + 导航 + M11）、阶段4（F1–F20 功能扩展）待排。
+- 阶段3（H8/H9 主题 + 导航 + M11 其余）、阶段4（F1–F20 功能扩展）待排。
+
+## 2026-10-27 阶段2 已完成（安全与工程底座）
+3 提交（fix(H1) → chore(M9,M10) → feat(M8,M9)），H1/M8/M9/M10 全落地：
+- **H1**：PBKDF2 210k+salt（`pbkdf2$iter$salt$hash`，旧 SHA-256 登录静默升级）；登录限流 `login_fail:{ip}` 5次/15min，防枚举统一文案；Cookie HttpOnly/SameSite=Lax/条件 Secure（http localhost 不带）；sessionId 不回传；session_epoch（`config:session_epoch`）改密全失效，旧格式会话兼容至过期；密钥源 `resolveEncryptionKey`：`ENCRYPTION_KEY_SOURCE=env|kv` 开关，未设时 TOKEN_ENC_KEY 优先；`POST /api/settings/migrate-encryption` 两阶段迁移 + `config:encryption_key_backup`。**运维顺序：配置 Secret 后必须立即迁移，否则存量 token 暂时解不开（README 有 WARNING）**。
+- **M8**：`src/lib/api.ts`（GET 失败静默走 ErrorBanner、非 GET 失败自动 toast、401 跳 /login 但 `/api/auth/*` 豁免、FormData 透传、支持 `{error:{code,message}}` 嵌套）；ErrorBanner + ConfirmDialog（危险操作输名确认）；Toast 全面接线；src/ 的 confirm()/alert()/裸 fetch 清零（**AuthContext 与 useTheme 之外**——AuthContext 按设计保留（ProtectedRoute 依赖），useTheme 已收编）。
+- **M9**：eslint.config.js flat config（0 errors / 10 warnings 存量模式）；`typecheck:functions` 脚本；types 与 API 对齐（Account=`encryptedToken/iv`、Worker 时间字段、KVKey 无 size/value）。
+- **M10**：compatibility_date 2026-10-01；public/_headers CSP+安全头、_redirects SPA fallback、favicon；README 修正（Wrangler CLI 唯一推荐，Dashboard 拖拽不带 functions/）。
+- **裁决记录**：改密成功前端 toast+logout+跳登录；password.ts 当前密码错误返回 400（非 401，防误判会话过期）；批量删除 ConfirmDialog requireName 固定"删除"。
+- **工作流经验**：大单体智能体易陷入探索不落地——改"主控写共享基元 + 多个轻量智能体按文件域并行（文件互斥）"；对停滞者直接催办"停止探索逐文件写"。
+
+**阶段2 遗留**：ACCOUNT_ERROR_HINTS 前端暂存 hint 文案（可改 api() 透出原始 body）；存量英文静态文案未中文化；exhaustive-deps 10 warnings。

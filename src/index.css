@@ -2,15 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * 语义色 token（阶段3 / H8）。
+ * 组件一律引用 surface / surface-2 / surface-3 / border-subtle / text-main /
+ * text-muted / text-faint 等语义类，禁止再写 cf-dark-* / text-white 等硬编码色。
+ *
+ * 变量用「R G B 三元组」而非 hex：Tailwind 3 只能对
+ * rgb(var(--x) / <alpha-value>) 形式的颜色生成 /50、/30 等透明度变体；
+ * 用 hex 变量时这些类会被静默丢弃（表格分隔线、hover 背景失效）。
+ */
+:root {
+  --surface: 255 255 255;
+  --surface-2: 244 245 247;
+  --surface-3: 232 234 239;
+  --surface-inset: 238 240 244;
+  --border-subtle: 226 229 234;
+  --border-strong: 201 206 214;
+  --text-main: 22 24 29;
+  --text-muted: 92 100 112;
+  --text-faint: 139 147 161;
+}
+
+.dark {
+  --surface: 26 26 46;
+  --surface-2: 22 33 62;
+  --surface-3: 30 41 59;
+  --surface-inset: 18 18 31;
+  --border-subtle: 42 54 80;
+  --border-strong: 51 65 85;
+  --text-main: 241 245 249;
+  --text-muted: 155 163 176;
+  --text-faint: 107 114 128;
+}
+
 @layer base {
   body {
-    @apply bg-white text-gray-900;
+    background-color: rgb(var(--surface));
+    color: rgb(var(--text-main));
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-  }
-
-  .dark body {
-    @apply bg-cf-dark-900 text-gray-100;
   }
 }

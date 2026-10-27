@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import Button from './Button'
+import Modal from './Modal'
 
 interface ConfirmDialogProps {
   open: boolean
@@ -22,6 +23,7 @@ interface ConfirmDialogProps {
 /**
  * Unified confirmation dialog replacing native confirm().
  * Esc closes; destructive actions can require typing the resource name.
+ * Modal 基座提供焦点圈定 / aria / 滚动锁。
  */
 export default function ConfirmDialog({
   open,
@@ -39,74 +41,52 @@ export default function ConfirmDialog({
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (!open) {
-      setTyped('')
-      return
-    }
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !loading) onClose()
-    }
-    window.addEventListener('keydown', onKeyDown)
-    if (requireName) inputRef.current?.focus()
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [open, loading, onClose, requireName])
-
-  if (!open) return null
+    if (!open) setTyped('')
+  }, [open])
 
   const nameOk = !requireName || typed.trim() === requireName
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={() => !loading && onClose()}
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className="relative bg-cf-dark-800 rounded-xl p-6 w-full max-w-md shadow-2xl border border-cf-dark-700 mx-4"
-      >
-        <h2 className="text-xl font-bold text-white mb-3">{title}</h2>
-        <div className="text-gray-300 text-sm mb-4">{message}</div>
+    <Modal open={open} title={title} onClose={onClose} closable={!loading} maxWidth="max-w-md">
+      <div className="text-text-muted text-sm mb-4">{message}</div>
 
-        {requireName && (
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-300 mb-1">
-              请输入 <span className="font-mono text-cf-orange">{requireName}</span> 以确认
-            </label>
-            <input
-              ref={inputRef}
-              type="text"
-              value={typed}
-              onChange={(e) => setTyped(e.target.value)}
-              placeholder={requireName}
-              disabled={loading}
-              className="w-full px-3 py-2 bg-cf-dark-700 border border-cf-dark-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cf-orange focus:border-transparent font-mono text-sm"
-            />
-          </div>
-        )}
-
-        <div className="flex gap-3 pt-2">
-          <Button
-            variant="secondary"
-            onClick={onClose}
+      {requireName && (
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-text-muted mb-1">
+            请输入 <span className="font-mono text-cf-orange">{requireName}</span> 以确认
+          </label>
+          <input
+            ref={inputRef}
+            type="text"
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            placeholder={requireName}
             disabled={loading}
-            className="flex-1"
-          >
-            {cancelText}
-          </Button>
-          <Button
-            variant={danger ? 'danger' : 'primary'}
-            onClick={onConfirm}
-            disabled={!nameOk || loading}
-            loading={loading}
-            className="flex-1"
-          >
-            {confirmText}
-          </Button>
+            data-autofocus
+            className="w-full px-3 py-2 bg-surface-3 border border-border-strong rounded-lg text-text-main placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-cf-orange focus:border-transparent font-mono text-sm"
+          />
         </div>
+      )}
+
+      <div className="flex gap-3 pt-2">
+        <Button
+          variant="secondary"
+          onClick={onClose}
+          disabled={loading}
+          className="flex-1"
+        >
+          {cancelText}
+        </Button>
+        <Button
+          variant={danger ? 'danger' : 'primary'}
+          onClick={onConfirm}
+          disabled={!nameOk || loading}
+          loading={loading}
+          className="flex-1"
+        >
+          {confirmText}
+        </Button>
       </div>
-    </div>
+    </Modal>
   )
 }

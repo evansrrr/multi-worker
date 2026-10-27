@@ -12,7 +12,7 @@ export default function ErrorBanner({ error, onDismiss }: ErrorBannerProps) {
   if (!error) return null
 
   return (
-    <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6">
+    <div role="alert" className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6">
       <p className="text-red-400">{error}</p>
       {onDismiss && (
         <button

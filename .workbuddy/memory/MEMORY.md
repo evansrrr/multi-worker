@@ -4,6 +4,17 @@
 Cloudflare Workers/Pages 多账户管理工具。前端 React 18 + Vite + Tailwind + react-router v6；后端 Cloudflare Pages Functions（`functions/`），数据存 KV `TOOL_DATA`。设计文档在 `docs/compose/`（注意 `.gitignore` 忽略了 docs/、Cloudflare API Doc/）。
 
 ## 关键约定
+- **主题色一律走语义 token**（`bg-surface-2` / `border-border-subtle` / `text-text-main` 等），禁止再写
+  `bg-cf-dark-*` / `text-white` / `text-gray-*`。CSS 变量必须用 **R G B 三元组**（`--surface-2: 244 245 247`），
+  Tailwind 侧写 `rgb(var(--surface-2) / <alpha-value>)`；用 hex 变量时 `/50`、`/30` 透明度类会被**静默丢弃**
+  （编译不报错，只能查 dist CSS 产物发现）。品牌色 cf-orange 与状态色（green/red/blue/amber）不 token 化。
+- **页面组件不包 `<Layout>`**：Layout/面包屑/Header 由 App.tsx 路由层统一提供（账户级嵌套路由
+  `/accounts/:accountId/{workers,pages,kv,d1}`）。改动时删 `<Layout>` 必须同步删 `</Layout>`，
+  否则根容器闭合错位会产生多个 JSX 根节点（TS2657）。
+- 弹窗一律用 `src/components/ui/Modal.tsx` 基座（Esc / Tab 焦点圈定 / aria-modal / 滚动锁 / 焦点归还），
+  不要自写 `fixed inset-0` 遮罩容器。
+- KV/D1 的选中态存 URL（`/kv/:namespaceId`、`/d1/:databaseId`）而非组件 state。
+- 首屏防闪烁脚本必须是独立文件（`public/theme-init.js`）：CSP 的 `script-src 'self'` 会拦截内联脚本。
 - `tsconfig.json` 的 include 只有 `src`，`functions/` 不参与 `npm run build` 的类型检查（需单独跑 tsc 或加 tsconfig.functions.json）。
 - Cloudflare API 正确用法以本地 `Cloudflare API Doc/` 为准；Workers 上传代码必须走 `PUT /accounts/{id}/workers/scripts/{script_name}`（multipart metadata + module），而 Beta `/workers/workers` 只收 JSON、不接受脚本，二者不可混用。
 - KV list keys 返回 `result` 数组 + `result_info.cursor`（不是 `{keys,list_complete}`）。

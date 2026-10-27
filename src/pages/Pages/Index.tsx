@@ -10,6 +10,7 @@ interface PagesProject {
   id: string
   name: string
   created_on: string
+  modified_on?: string
   production_branch: string
   subdomain: string
   domains: string[]
@@ -24,37 +25,61 @@ interface PagesProject {
   }
 }
 
+interface ResultInfo {
+  count?: number
+  page?: number
+  per_page?: number
+  total_count?: number
+}
+
 export default function Pages() {
   const { accountId } = useParams()
   const [projects, setProjects] = useState<PagesProject[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState('')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showDeployModal, setShowDeployModal] = useState(false)
   const [deployProjectName, setDeployProjectName] = useState<string | null>(null)
   const [deletingName, setDeletingName] = useState<string | null>(null)
   const [deployingName, setDeployingName] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [resultInfo, setResultInfo] = useState<ResultInfo | null>(null)
 
-  const fetchProjects = async () => {
+  const PER_PAGE = 20
+
+  const fetchProjects = async (nextPage = 1, append = false) => {
+    if (append) setLoadingMore(true)
+    else setLoading(true)
     try {
-      const response = await fetch(`/api/accounts/${accountId}/pages`)
+      const response = await fetch(
+        `/api/accounts/${accountId}/pages?page=${nextPage}&per_page=${PER_PAGE}`
+      )
       const data = await response.json()
 
       if (data.error) {
         throw new Error(data.error)
       }
 
-      setProjects(data.projects || [])
+      const incoming: PagesProject[] = data.projects || []
+      setProjects((prev) => (append ? [...prev, ...incoming] : incoming))
+      setResultInfo(data.result_info || null)
+      setPage(nextPage)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load Pages projects')
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
   }
 
   useEffect(() => {
-    fetchProjects()
+    fetchProjects(1, false)
   }, [accountId])
+
+  const hasMore = resultInfo
+    ? (resultInfo.page ?? 1) * (resultInfo.per_page ?? PER_PAGE) < (resultInfo.total_count ?? 0)
+    : false
 
   const handleCreateProject = async (name: string, productionBranch?: string) => {
     const response = await fetch(`/api/accounts/${accountId}/pages`, {
@@ -99,11 +124,15 @@ export default function Pages() {
     }
   }
 
-  const handleDeployProject = async (name: string) => {
+  const handleDeployProject = async (name: string, file: File) => {
     setDeployingName(name)
     try {
+      const formData = new FormData()
+      formData.append('files', file)
+
       const response = await fetch(`/api/accounts/${accountId}/pages/${name}/deploy`, {
         method: 'POST',
+        body: formData,
       })
 
       const data = await response.json()
@@ -172,6 +201,18 @@ export default function Pages() {
               deletingName={deletingName}
               deployingName={deployingName}
             />
+            {hasMore && (
+              <div className="p-4 border-t border-cf-dark-700">
+                <Button
+                  variant="secondary"
+                  onClick={() => fetchProjects(page + 1, true)}
+                  loading={loadingMore}
+                  className="w-full"
+                >
+                  Load More
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>

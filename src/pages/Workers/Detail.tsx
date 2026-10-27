@@ -7,7 +7,10 @@ interface WorkerDetail {
   id: string
   name: string
   created_on: string
-  modified_on: string
+  /** Beta Workers API returns `updated_on`; classic scripts return `modified_on`. */
+  updated_on?: string
+  modified_on?: string
+  deployed_on?: string
   routes?: Array<{
     pattern: string
     zone_id: string
@@ -165,7 +168,11 @@ export default function WorkerDetail() {
             </div>
             <div>
               <p className="text-sm text-gray-400">Modified</p>
-              <p className="text-white">{worker?.modified_on ? formatDate(worker.modified_on) : '-'}</p>
+              <p className="text-white">
+                {worker?.updated_on || worker?.modified_on
+                  ? formatDate(worker.updated_on || worker.modified_on!)
+                  : '-'}
+              </p>
             </div>
           </div>
 

@@ -17,7 +17,10 @@ export interface Worker {
   id: string
   name: string
   created_on: string
-  modified_on: string
+  /** Beta Workers API returns `updated_on`; classic scripts return `modified_on`. */
+  updated_on?: string
+  modified_on?: string
+  deployed_on?: string
   routes: WorkerRoute[]
   bindings: WorkerBinding[]
 }

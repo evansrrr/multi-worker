@@ -12,6 +12,7 @@ interface Worker {
   name: string
   created_on: string
   updated_on: string
+  deployed_on?: string
   routes?: Array<{
     pattern: string
     zone_id: string
@@ -20,36 +21,60 @@ interface Worker {
   }>
 }
 
+interface ResultInfo {
+  count?: number
+  page?: number
+  per_page?: number
+  total_count?: number
+}
+
 export default function Workers() {
   const { accountId } = useParams()
   const [workers, setWorkers] = useState<Worker[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState('')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [deletingName, setDeletingName] = useState<string | null>(null)
   const [bindingsWorkerName, setBindingsWorkerName] = useState<string | null>(null)
   const [deployWorkerName, setDeployWorkerName] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [resultInfo, setResultInfo] = useState<ResultInfo | null>(null)
 
-  const fetchWorkers = async () => {
+  const PER_PAGE = 20
+
+  const fetchWorkers = async (nextPage = 1, append = false) => {
+    if (append) setLoadingMore(true)
+    else setLoading(true)
     try {
-      const response = await fetch(`/api/accounts/${accountId}/workers`)
+      const response = await fetch(
+        `/api/accounts/${accountId}/workers?page=${nextPage}&per_page=${PER_PAGE}`
+      )
       const data = await response.json()
 
       if (data.error) {
         throw new Error(data.error)
       }
 
-      setWorkers(data.workers || [])
+      const incoming: Worker[] = data.workers || []
+      setWorkers((prev) => (append ? [...prev, ...incoming] : incoming))
+      setResultInfo(data.result_info || null)
+      setPage(nextPage)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load workers')
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
   }
 
   useEffect(() => {
-    fetchWorkers()
+    fetchWorkers(1, false)
   }, [accountId])
+
+  const hasMore = resultInfo
+    ? (resultInfo.page ?? 1) * (resultInfo.per_page ?? PER_PAGE) < (resultInfo.total_count ?? 0)
+    : false
 
   const handleCreateWorker = async (name: string, script?: string) => {
     const response = await fetch(`/api/accounts/${accountId}/workers`, {
@@ -163,6 +188,18 @@ export default function Workers() {
               onDeploy={(name) => setDeployWorkerName(name)}
               deletingName={deletingName}
             />
+            {hasMore && (
+              <div className="p-4 border-t border-cf-dark-700">
+                <Button
+                  variant="secondary"
+                  onClick={() => fetchWorkers(page + 1, true)}
+                  loading={loadingMore}
+                  className="w-full"
+                >
+                  Load More
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>

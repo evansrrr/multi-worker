@@ -17,6 +17,7 @@ export interface PagesProject {
   id: string;
   name: string;
   created_on: string;
+  modified_on?: string;
   production_branch: string;
   subdomain: string;
   domains: string[];
@@ -31,8 +32,16 @@ export interface PagesProject {
   };
 }
 
+export interface ResultInfo {
+  count?: number;
+  page?: number;
+  per_page?: number;
+  total_count?: number;
+  cursor?: string;
+}
+
 export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const { env, params } = context;
+  const { env, params, request } = context;
   const accountId = params.id as string;
 
   const token = await getCloudflareToken(env, accountId);
@@ -43,9 +52,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     );
   }
 
+  const url = new URL(request.url);
+  const page = url.searchParams.get("page") ?? "1";
+  const perPage = url.searchParams.get("per_page") ?? "20";
+
   const response = await cloudflareFetch(
     token,
-    `/accounts/${accountId}/pages/projects`
+    `/accounts/${accountId}/pages/projects?page=${encodeURIComponent(
+      page
+    )}&per_page=${encodeURIComponent(perPage)}`
   );
 
   const data = await parseCfResponse<PagesProject[]>(response);
@@ -59,8 +74,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     );
   }
 
+  const anyData = data as unknown as { result_info?: ResultInfo };
   return new Response(
-    JSON.stringify({ projects: data.result }),
+    JSON.stringify({ projects: data.result, result_info: anyData.result_info }),
     { status: 200, headers: { "Content-Type": "application/json" } }
   );
 };

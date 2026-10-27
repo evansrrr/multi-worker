@@ -30,6 +30,7 @@ interface D1QueryResult {
   meta?: D1QueryMeta;
   results?: unknown[];
   success?: boolean;
+  errors?: Array<{ code?: number; message?: string }>;
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -84,8 +85,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     );
   }
 
+  // D1 wraps each statement's outcome in result[i].success; the outer
+  // success stays true even when individual statements fail. Surface
+  // per-statement errors so the UI can show them.
+  const perStatementErrors = (data.result ?? [])
+    .map((r, i) => ({ index: i, error: r?.errors?.[0]?.message }))
+    .filter((x): x is { index: number; error: string } => !!x.error);
+
   return new Response(
-    JSON.stringify({ result: data.result }),
+    JSON.stringify({
+      result: data.result,
+      statement_errors: perStatementErrors,
+    }),
     { status: 200, headers: { "Content-Type": "application/json" } }
   );
 };

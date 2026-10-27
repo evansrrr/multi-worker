@@ -30,6 +30,7 @@ interface D1QueryResult {
   meta?: D1QueryMeta;
   results?: Array<{ name: string; type: string }>;
   success?: boolean;
+  errors?: Array<{ code?: number; message?: string }>;
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -67,7 +68,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     );
   }
 
-  const tables = data.result?.[0]?.results || [];
+  // D1 wraps the statement's own outcome in result[0].success; the outer
+  // success can still be true even when the statement itself failed.
+  const stmt = data.result?.[0];
+  if (stmt && stmt.success === false) {
+    const errorMessage =
+      stmt.errors?.[0]?.message || "Failed to list tables";
+    return new Response(
+      JSON.stringify({ error: errorMessage }),
+      { status: 502, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  const tables = stmt?.results || [];
 
   return new Response(
     JSON.stringify({ tables }),

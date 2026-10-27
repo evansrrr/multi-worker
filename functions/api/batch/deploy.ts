@@ -2,7 +2,11 @@
  * POST /api/batch/deploy - Deploy a ZIP to multiple Pages projects and/or Workers
  */
 
-import { getCloudflareToken } from "../../lib/cloudflare";
+import {
+  getCloudflareToken,
+  cloudflareFetch,
+  parseCfResponse,
+} from "../../lib/cloudflare";
 
 interface Env {
   TOOL_DATA: KVNamespace;
@@ -98,51 +102,145 @@ async function deployPages(
   const files = await extractZipFiles(zipBuffer);
   if (files.size === 0) return { success: false, error: "No files in ZIP" };
 
-  const manifest: Record<string, { hash: string; size: number }> = [];
+  // Pages Direct Upload manifest is a plain { path: hash } map (paths should
+  // be rooted with a leading "/"), not an object of { hash, size }.
+  const manifest: Record<string, string> = {};
   const fileParts: Array<{ hash: string; data: Uint8Array }> = [];
 
   for (const [path, data] of files) {
     const hash = await sha256(data);
-    manifest[path] = { hash, size: data.length };
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    manifest[normalizedPath] = hash;
     fileParts.push({ hash, data });
   }
 
   const formData = new FormData();
-  formData.append("manifest", JSON.stringify(manifest));
+  formData.append(
+    "manifest",
+    new Blob([JSON.stringify(manifest)], { type: "application/json" })
+  );
   for (const { hash, data } of fileParts) {
     formData.append(hash, new Blob([data]), hash);
   }
 
-  const res = await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/${accountId}/pages/projects/${name}/deployments`,
-    { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: formData }
+  // Do NOT set Content-Type manually — fetch must generate the boundary.
+  const res = await cloudflareFetch(
+    token,
+    `/accounts/${accountId}/pages/projects/${name}/deployments`,
+    { method: "POST", body: formData }
   );
 
-  const data = await res.json<{ success: boolean; errors?: Array<{ message: string }> }>();
-  if (!data.success) return { success: false, error: data.errors?.[0]?.message || "Pages deploy failed" };
+  const data = await parseCfResponse(res);
+  if (!data.success) {
+    return {
+      success: false,
+      error: data.errors?.[0]?.message || "Pages deploy failed",
+    };
+  }
   return { success: true };
 }
 
+/**
+ * Deploy a Worker from a ZIP: extract the entry module and upload it via the
+ * classic scripts API (PUT /workers/scripts/{script_name}), preserving the
+ * Worker's existing bindings. The previous implementation passed the whole
+ * ZIP buffer as a single "worker.js" module, which is wrong.
+ */
 async function deployWorker(
   token: string,
   accountId: string,
   name: string,
   zipBuffer: ArrayBuffer
 ): Promise<{ success: boolean; error?: string }> {
-  const formData = new FormData();
-  formData.append("metadata", new Blob([JSON.stringify({
-    main_module: "worker.js",
-    compatibility_date: new Date().toISOString().split("T")[0],
-  })], { type: "application/json" }));
-  formData.append("worker.js", new Blob([zipBuffer], { type: "application/javascript+module" }), "worker.js");
+  const files = await extractZipFiles(zipBuffer);
+  if (files.size === 0) return { success: false, error: "No files in ZIP" };
 
-  const res = await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/${accountId}/workers/workers/${name}`,
-    { method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: formData }
+  // Pick an entry module. Prefer a common entry filename; otherwise use the
+  // first .js/.mjs file in the archive.
+  const entryCandidates = [
+    "worker.js",
+    "index.js",
+    "main.js",
+    "src/worker.js",
+    "src/index.js",
+    "src/main.js",
+  ];
+  let entryName: string | undefined;
+  for (const candidate of entryCandidates) {
+    if (files.has(candidate)) {
+      entryName = candidate;
+      break;
+    }
+  }
+  if (!entryName) {
+    for (const path of files.keys()) {
+      if (path.endsWith(".js") || path.endsWith(".mjs")) {
+        entryName = path;
+        break;
+      }
+    }
+  }
+  if (!entryName) {
+    return {
+      success: false,
+      error: "No JavaScript entry module found in ZIP (expected worker.js or index.js)",
+    };
+  }
+
+  const entryData = files.get(entryName)!;
+
+  // Read existing settings so the upload doesn't wipe bindings / config.
+  let existingBindings: unknown[] = [];
+  let compatibilityDate: string | undefined;
+  try {
+    const settingsRes = await cloudflareFetch(
+      token,
+      `/accounts/${accountId}/workers/scripts/${name}/settings`
+    );
+    const settingsData = await parseCfResponse<{
+      bindings?: unknown[];
+      compatibility_date?: string;
+    }>(settingsRes);
+    if (settingsData.success && settingsData.result) {
+      existingBindings = settingsData.result.bindings ?? [];
+      compatibilityDate = settingsData.result.compatibility_date;
+    }
+  } catch {
+    // Brand-new script — fall through with empty bindings.
+  }
+
+  const metadata = {
+    main_module: "worker.js",
+    bindings: existingBindings,
+    compatibility_date:
+      compatibilityDate ?? new Date().toISOString().split("T")[0],
+  };
+
+  const formData = new FormData();
+  formData.append(
+    "metadata",
+    new Blob([JSON.stringify(metadata)], { type: "application/json" })
+  );
+  formData.append(
+    "worker.js",
+    new Blob([entryData], { type: "application/javascript+module" }),
+    "worker.js"
   );
 
-  const data = await res.json<{ success: boolean; errors?: Array<{ message: string }> }>();
-  if (!data.success) return { success: false, error: data.errors?.[0]?.message || "Worker deploy failed" };
+  // Do NOT set Content-Type manually — fetch must generate the boundary.
+  const res = await cloudflareFetch(
+    token,
+    `/accounts/${accountId}/workers/scripts/${encodeURIComponent(name)}`,
+    { method: "PUT", body: formData }
+  );
+
+  const data = await parseCfResponse(res);
+  if (!data.success) {
+    return {
+      success: false,
+      error: data.errors?.[0]?.message || "Worker deploy failed",
+    };
+  }
   return { success: true };
 }
 

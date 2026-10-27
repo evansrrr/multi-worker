@@ -16,13 +16,17 @@ interface Env {
 interface Worker {
   id: string;
   name: string;
-  modified_on: string;
+  updated_on?: string;
+  deployed_on?: string;
+  created_on?: string;
+  modified_on?: string;
 }
 
 interface PagesProject {
   id: string;
   name: string;
-  modified_on: string;
+  modified_on?: string;
+  created_on?: string;
 }
 
 interface Resource {
@@ -31,6 +35,19 @@ interface Resource {
   accountId: string;
   accountName: string;
   modifiedOn: string;
+}
+
+/**
+ * Normalize the various "last modified" timestamps across Cloudflare APIs.
+ * Workers Beta returns `updated_on` / `deployed_on`; classic scripts return
+ * `modified_on`; Pages returns `modified_on` / `created_on`. Prefer the most
+ * specific one and fall back gracefully so we never emit "Invalid Date".
+ */
+function pickModifiedOn(...candidates: Array<string | undefined>): string {
+  for (const c of candidates) {
+    if (c) return c;
+  }
+  return "";
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -43,9 +60,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const token = await getCloudflareToken(env, account.id);
     if (!token) return;
 
+    // Use a generous per_page so the aggregate view is useful by default.
     const [workersResponse, pagesResponse] = await Promise.all([
-      cloudflareFetch(token, `/accounts/${account.id}/workers/workers`),
-      cloudflareFetch(token, `/accounts/${account.id}/pages/projects`),
+      cloudflareFetch(
+        token,
+        `/accounts/${account.id}/workers/workers?page=1&per_page=100`
+      ),
+      cloudflareFetch(
+        token,
+        `/accounts/${account.id}/pages/projects?page=1&per_page=100`
+      ),
     ]);
 
     const [workersData, pagesData] = await Promise.all([
@@ -60,7 +84,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           type: "worker",
           accountId: account.id,
           accountName: account.name,
-          modifiedOn: worker.modified_on,
+          modifiedOn: pickModifiedOn(
+            worker.updated_on,
+            worker.deployed_on,
+            worker.modified_on,
+            worker.created_on
+          ),
         });
       }
     }
@@ -72,7 +101,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           type: "pages",
           accountId: account.id,
           accountName: account.name,
-          modifiedOn: project.modified_on,
+          modifiedOn: pickModifiedOn(
+            project.modified_on,
+            project.created_on
+          ),
         });
       }
     }

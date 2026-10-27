@@ -18,29 +18,40 @@ Cloudflare Workers & Pages 多账户管理工具。支持管理多个 Cloudflare
 
 ## 部署
 
-### 方式一：Cloudflare Dashboard（推荐）
+本项目是 **Cloudflare Pages** 应用：`dist/` 为静态产物，API 全部由 `functions/` 目录下的 Pages Functions 提供。因此**必须使用 Wrangler CLI 部署**（Dashboard 拖拽上传不支持 `functions/` 目录）。
 
-本项目支持通过 Cloudflare Dashboard 直接部署为 **Pages** 应用
-
-#### 步骤 1：创建 KV 命名空间
+### 步骤 1：创建 KV 命名空间
 
 1. 登录 [Cloudflare Dashboard](https://dash.cloudflare.com/)
 2. 进入 **Workers & Pages** > **KV**
-3. 点击 **Create a namespace**
-4. **命名空间名称必须为：`TOOL_DATA`**
-5. 点击 **Add**
+3. 点击 **Create a namespace**（名称任意，例如 `TOOL_DATA`）
+4. 点击 **Add**
 
-> KV 命名空间名称必须为 `TOOL_DATA`，这是项目预设的绑定名称
+或使用命令行：
 
-#### 步骤 2：部署 Pages 项目
+```bash
+npx wrangler kv namespace create "TOOL_DATA"
+```
 
-1. 进入 **Workers & Pages** > **Overview**
-2. 点击 **Create application**
-3. 选择 **Pages** > **Upload assets**
-4. 输入项目名称（例如 `multi-worker`）
-5. 上传 `dist` 目录下的所有文件
+### 步骤 2：配置 wrangler.toml（KV 绑定的单一事实源）
 
-或者使用命令行上传：
+KV 绑定以 `wrangler.toml` 内的 `id` 为准（单一事实源），Dashboard 中的绑定仅作兜底：
+
+```toml
+name = "multi-worker-manager"
+compatibility_date = "2026-10-01"
+pages_build_output_dir = "dist"
+
+# KV 命名空间绑定
+[[kv_namespaces]]
+binding = "TOOL_DATA"
+id = "你的KV命名空间ID"
+```
+
+- `binding` 必须为 `TOOL_DATA`（代码中引用的环境变量名）
+- `id` 来自 Cloudflare Dashboard → KV → 该命名空间的 ID，或 `npx wrangler kv namespace list` 的输出
+
+### 步骤 3：构建并部署（推荐：Wrangler CLI）
 
 ```bash
 # 安装依赖
@@ -49,99 +60,55 @@ npm install
 # 构建项目
 npm run build
 
-# 使用 wrangler 上传
+# 部署：dist 静态文件 + functions/ Pages Functions 一并上传
 npx wrangler pages deploy dist --project-name=multi-worker
 ```
 
-#### 步骤 3：绑定 KV 命名空间
+`wrangler pages deploy` 在项目根目录执行时，会自动把 `functions/` 目录随项目一起上传（Functions 路由先于 `_redirects` 匹配，`/api/*` 不会被 SPA 兜底遮蔽）。首次部署前可先 `npx wrangler pages project create` 创建项目。
 
-1. 进入 Pages 项目的 **Settings** > **Functions** > **KV namespace bindings**
-2. 点击 **Add binding**
-3. 配置：
-   - **Variable name**: `TOOL_DATA`
-   - **KV namespace**: 选择步骤 1 创建的 `TOOL_DATA`
-4. 点击 **Save**
+**替代方案（不推荐）：Dashboard 上传 dist**
 
-> 绑定后需要重新部署才能生效
+Cloudflare Dashboard 的拖拽上传仅上传静态资产，**不支持 `functions/` 目录**，部署后 `/api/*` 全部不可用。仅当你想预览纯前端页面时使用；完整功能请用 Wrangler CLI。
 
-### 方式二：Wrangler CLI 部署
+### 步骤 4：环境变量与密钥
 
-#### 步骤 1：修改 wrangler.toml
+#### TOKEN_ENC_KEY（Worker Secret）
 
-在项目根目录修改 `wrangler.toml`：
+账户 API token 的加密密钥（AES-256-GCM）：
 
-```toml
-name = "multi-worker"
-pages_build_output_dir = "dist"
-compatibility_date = "2024-01-01"
+- 格式：base64 编码的 256-bit key，可用 `openssl rand -base64 32` 生成
+- 设置方式（二选一）：
+  - CLI：`npx wrangler pages secret put TOKEN_ENC_KEY --project-name=multi-worker`
+  - Dashboard：Pages 项目 → **Settings** → **Environment variables** → **Secrets**
 
-# KV 命名空间绑定
-[[kv_namespaces]]
-binding = "TOOL_DATA"
-id = "你的KV命名空间ID"
-```
+> [!WARNING]
+> **部署顺序**：Secret 一旦配置即刻生效——`resolveEncryptionKey` 见到 `TOKEN_ENC_KEY` 就会用它解密，而存量账户 token 仍用 KV 旧密钥加密，**未执行迁移前这些 token 无法解密（账户会显示 token 无效）**。正确顺序：配置 Secret → **立即**调用 `POST /api/settings/migrate-encryption`（登录后）→ 验证账户列表/校验可用。两者之间不要间隔操作。
 
-#### 步骤 2：获取 KV 命名空间 ID
+#### ENCRYPTION_KEY_SOURCE（回滚开关，可选）
 
-```bash
-# 列出所有 KV 命名空间
-npx wrangler kv namespace list
+取值 `kv` | `env`，用于控制加密密钥来源：
 
-# 或者创建新的
-npx wrangler kv namespace create "TOOL_DATA"
-```
+- `env`：使用 `TOKEN_ENC_KEY`（推荐）
+- `kv`：使用 KV 中的旧密钥（回滚用）
+- 未设置时：若 `TOKEN_ENC_KEY` 存在则优先 `env`，否则走 KV 旧密钥
 
-#### 步骤 3：部署
+#### 一次性迁移端点
 
-**重要：** 本项目使用 Cloudflare Pages Functions，部署时需要包含 `functions` 目录。
+存在一次性迁移端点 `POST /api/settings/migrate-encryption`（登录后调用）：把 KV 旧密钥加密的账户 token 重加密到 `TOKEN_ENC_KEY` 并删除旧键。迁移端点是**两阶段**执行（先全部解密验证，任一失败则零写入中止；再重加密写回），返回 `{success, migrated, message}`。迁移后建议保留 `ENCRYPTION_KEY_SOURCE=env`。
 
-```bash
-# 开发模式（仅前端）
-npm run dev
+**备份与回滚**：迁移前旧密钥会自动备份到 `config:encryption_key_backup`。如需回滚：
 
-# 本地测试完整功能（包含 Functions）
-npm run build
-npx wrangler pages dev dist
+1. 设置 `ENCRYPTION_KEY_SOURCE=kv`（强制走 KV 旧键）
+2. 如需要，从 `config:encryption_key_backup` 恢复 `config:encryption_key`
 
-# 构建并部署到 Cloudflare Pages
-npm run build
-npx wrangler pages deploy
-```
+注意：迁移成功后 `config:encryption_key` 会被删除（备份仍在 `config:encryption_key_backup`）。
 
-**注意：** 不要使用 `npx wrangler pages deploy dist`，这只会部署静态文件，不会部署 Functions。
+#### ADMIN_PASSWORD（可选）
 
-正确的部署命令是 `npx wrangler pages deploy`（不指定目录），它会自动：
-1. 部署 `dist` 目录中的静态文件
-2. 部署 `functions` 目录中的 Cloudflare Pages Functions
+初始管理员密码（至少 8 个字符），通过 Dashboard **Settings** > **Environment variables** 添加，设置后需重新部署生效：
 
-### ADMIN_PASSWORD 配置
-
-本工具支持通过环境变量 `ADMIN_PASSWORD` 配置初始管理员密码：
-
-1. 在 Cloudflare Dashboard 中进入 Pages 项目设置
-2. 进入 **Settings** > **Environment variables**
-3. 添加环境变量：
-   - **Variable name**: `ADMIN_PASSWORD`
-   - **Value**: 你的管理员密码（至少 8 个字符）
-4. 点击 **Save**
-5. **重新部署项目**（环境变量设置后必须重新部署才能生效）
-
-**密码配置方式：**
-
-- **方式一（推荐）**：配置 `ADMIN_PASSWORD` 环境变量
-  - 首次访问时自动完成初始化，无需手动设置密码
-  - 更安全，密码不通过界面传输
-  
-- **方式二**：通过初始化向导设置
-  - 首次访问时显示初始化页面
-  - 手动输入密码完成设置
-
-**环境变量生效流程：**
-
-1. 设置 `ADMIN_PASSWORD` 环境变量
-2. 运行 `npm run build` 构建项目
-3. 运行 `npx wrangler pages deploy` 重新部署
-4. 首次访问时，系统会自动使用 `ADMIN_PASSWORD` 完成初始化
+- **方式一（推荐）**：配置 `ADMIN_PASSWORD` 环境变量，首次访问自动完成初始化，密码不经过界面传输
+- **方式二**：不配置该变量，首次访问时通过初始化向导手动设置密码
 
 **安全说明：**
 
@@ -163,33 +130,52 @@ npx wrangler pages deploy
 # 安装依赖
 npm install
 
-# 启动开发服务器
+# 启动开发服务器（仅前端）
 npm run dev
 
 # 构建生产版本
 npm run build
 
+# 本地测试完整功能（含 Pages Functions）
+npm run dev:pages
+
 # 预览生产版本
 npm run preview
+
+# 代码检查
+npm run lint
+
+# functions/ 类型检查
+npm run typecheck:functions
 ```
 
 ### 项目结构
 
 ```
 multi-worker/
-├── src/
-│   ├── components/       # React 组件
-│   │   ├── accounts/     # 账户管理组件
-│   │   ├── layout/       # 布局组件
-│   │   ├── pages/        # Pages 管理组件
-│   │   ├── ui/           # UI 基础组件
-│   │   └── workers/      # Workers 管理组件
-│   ├── contexts/         # React Context
-│   ├── hooks/            # 自定义 Hooks
-│   ├── pages/            # 页面组件
-│   └── types/            # TypeScript 类型定义
-├── Cloudflare API Doc/   # Cloudflare API 文档参考
-└── Cloudflare Frontend Example/  # 前端界面参考
+├── index.html              # Vite 入口
+├── wrangler.toml           # Pages 配置（KV 绑定以这里为准）
+├── public/                 # 静态资源，构建时原样拷入 dist/
+│   ├── _headers            # 安全响应头（CSP 等）
+│   ├── _redirects          # SPA 兜底（/* -> /index.html）
+│   └── favicon.svg
+├── src/                    # 前端（React + Vite + Tailwind）
+│   ├── components/         # 通用组件（accounts / dashboard / layout / pages / ui / workers）
+│   ├── contexts/           # Auth / Toast 上下文
+│   ├── hooks/              # useAuth / useTheme / useToast
+│   ├── pages/              # 页面：Accounts / Auth / D1 / Dashboard / KV / Pages / Settings / Workers
+│   └── types/              # 前端类型定义
+├── functions/              # Cloudflare Pages Functions（后端 API）
+│   ├── _middleware.ts      # 会话校验等中间件
+│   ├── api/                # REST 端点（约 33 个），按资源域组织：
+│   │   ├── accounts/       # 账户 CRUD + verify
+│   │   │   └── [id]/       # workers / pages / kv / d1 子资源（列表、部署、绑定、查询等）
+│   │   ├── auth/           # login / logout / setup / status
+│   │   ├── batch/          # 批量部署 / 批量删除
+│   │   ├── resources/      # 跨资源汇总
+│   │   └── settings/       # 外观 / 密码 / 加密迁移
+│   └── lib/                # cloudflare API 封装 / crypto / kv 工具
+└── eslint.config.js        # ESLint flat config
 ```
 
 ## API 依赖

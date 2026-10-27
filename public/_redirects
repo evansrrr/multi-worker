@@ -1,0 +1,2 @@
+# SPA fallback：Cloudflare Pages Functions 会先于重定向匹配 /api/* 函数路由，不会遮蔽 API
+/* /index.html 200

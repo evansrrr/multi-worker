@@ -24,6 +24,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const accounts = await getAccounts(env);
 
   // Return accounts without sensitive token data
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const safeAccounts = accounts.map(({ encryptedToken, iv, ...rest }) => rest);
 
   return new Response(
@@ -46,7 +47,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const token = body.token.trim();
 
   // Try to verify as API Token first (Bearer auth)
-  let verifyResponse = await fetch(`${CF_API_BASE}/user`, {
+  const verifyResponse = await fetch(`${CF_API_BASE}/user`, {
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",

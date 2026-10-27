@@ -1,8 +1,11 @@
 name = "multi-worker-manager"
-compatibility_date = "2024-01-01"
+# 运行时兼容版本，跟随 Cloudflare 能力发布节奏（升级后需手测全流程）
+compatibility_date = "2026-10-01"
 pages_build_output_dir = "dist"
 
-# KV 命名空间绑定 - 部署后在 Dashboard 绑定，或取消注释填入 ID
+# KV 命名空间绑定（部署依赖此 id，请勿删除）
+# id 来自 Cloudflare Dashboard → KV → 该命名空间的 ID
+# 绑定以本文件的 id 为准（单一事实源），Dashboard 绑定仅作兜底
 [[kv_namespaces]]
 binding = "TOOL_DATA"
 id = "eb833703e2d24b18802eb7de1391fc54"

@@ -38,19 +38,38 @@ export async function getCloudflareToken(
 
 /**
  * Make an authenticated request to the Cloudflare API.
+ *
+ * Content-Type is only injected for JSON bodies (string or plain object).
+ * FormData/Blob/ArrayBuffer bodies must set their own headers (or none at
+ * all, so fetch can generate the multipart boundary); injecting
+ * "application/json" for them corrupts the request.
  */
 export async function cloudflareFetch(
   token: string,
   path: string,
   options: RequestInit = {}
 ): Promise<Response> {
+  const headers = new Headers(options.headers);
+  headers.set("Authorization", `Bearer ${token}`);
+
+  const body = options.body;
+  const isJsonBody =
+    typeof body === "string" ||
+    (body != null &&
+      typeof body === "object" &&
+      !(body instanceof FormData) &&
+      !(body instanceof Blob) &&
+      !(body instanceof ArrayBuffer) &&
+      !(body instanceof URLSearchParams) &&
+      !(typeof ReadableStream !== "undefined" && body instanceof ReadableStream));
+
+  if (isJsonBody && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
   return fetch(`${CF_API_BASE}${path}`, {
     ...options,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
+    headers,
   });
 }
 
@@ -67,6 +86,13 @@ export interface CfApiResponse<T = unknown> {
 export async function parseCfResponse<T>(
   response: Response
 ): Promise<CfApiResponse<T>> {
+  const contentType = response.headers.get("Content-Type") ?? "";
+  if (!contentType.includes("json")) {
+    const text = await response.text();
+    throw new Error(
+      `Cloudflare API returned non-JSON response (status ${response.status}): ${text.slice(0, 200)}`
+    );
+  }
   const data = await response.json<CfApiResponse<T>>();
   return data;
 }

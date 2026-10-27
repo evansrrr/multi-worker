@@ -1,5 +1,9 @@
 /**
  * POST /api/batch/deploy - Deploy a ZIP to multiple Pages projects and/or Workers
+ *
+ * - ZIP 解压统一走 functions/lib/zip.ts（解压失败整体失败，不静默跳过）。
+ * - Pages 部署统一走 functions/lib/pages-upload.ts 的 Direct Upload 完整协议。
+ * - Worker 部署走经典脚本端点 PUT /workers/scripts/{name}，保留既有绑定。
  */
 
 import {
@@ -7,6 +11,8 @@ import {
   cloudflareFetch,
   parseCfResponse,
 } from "../../lib/cloudflare";
+import { unzip, ZipEntry } from "../../lib/zip";
+import { directUploadDeploy } from "../../lib/pages-upload";
 
 interface Env {
   TOOL_DATA: KVNamespace;
@@ -24,120 +30,23 @@ interface BatchResult {
   error?: string;
 }
 
-// Simple ZIP file extraction
-async function extractZipFiles(zipBuffer: ArrayBuffer): Promise<Map<string, Uint8Array>> {
-  const files = new Map<string, Uint8Array>();
-  const view = new DataView(zipBuffer);
-  const uint8 = new Uint8Array(zipBuffer);
-
-  let eocdOffset = zipBuffer.byteLength - 22;
-  while (eocdOffset >= 0) {
-    if (view.getUint32(eocdOffset, true) === 0x06054b50) break;
-    eocdOffset--;
-  }
-  if (eocdOffset < 0) throw new Error("Invalid ZIP file");
-
-  const centralDirOffset = view.getUint32(eocdOffset + 16, true);
-  const numEntries = view.getUint16(eocdOffset + 10, true);
-  let offset = centralDirOffset;
-
-  for (let i = 0; i < numEntries; i++) {
-    const compressedSize = view.getUint32(offset + 20, true);
-    const uncompressedSize = view.getUint32(offset + 24, true);
-    const fileNameLength = view.getUint16(offset + 28, true);
-    const extraFieldLength = view.getUint16(offset + 30, true);
-    const commentLength = view.getUint16(offset + 32, true);
-    const localHeaderOffset = view.getUint32(offset + 42, true);
-    const fileName = new TextDecoder().decode(uint8.subarray(offset + 46, offset + 46 + fileNameLength));
-
-    if (!fileName.endsWith("/")) {
-      const localFileNameLength = view.getUint16(localHeaderOffset + 26, true);
-      const localExtraLength = view.getUint16(localHeaderOffset + 28, true);
-      const dataOffset = localHeaderOffset + 30 + localFileNameLength + localExtraLength;
-      const compressionMethod = view.getUint16(offset + 10, true);
-
-      if (compressionMethod === 0) {
-        files.set(fileName, uint8.subarray(dataOffset, dataOffset + uncompressedSize));
-      } else {
-        try {
-          const compressedData = uint8.subarray(dataOffset, dataOffset + compressedSize);
-          const ds = new DecompressionStream("deflate-raw");
-          const writer = ds.writable.getWriter();
-          writer.write(compressedData);
-          writer.close();
-          const reader = ds.readable.getReader();
-          const chunks: Uint8Array[] = [];
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            chunks.push(value);
-          }
-          const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-          const result = new Uint8Array(totalLength);
-          let pos = 0;
-          for (const chunk of chunks) {
-            result.set(chunk, pos);
-            pos += chunk.length;
-          }
-          files.set(fileName, result);
-        } catch { /* skip */ }
-      }
-    }
-    offset += 46 + fileNameLength + extraFieldLength + commentLength;
-  }
-  return files;
-}
-
-async function sha256(data: Uint8Array): Promise<string> {
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
-}
-
 async function deployPages(
   token: string,
   accountId: string,
   name: string,
-  zipBuffer: ArrayBuffer
+  entries: ZipEntry[]
 ): Promise<{ success: boolean; error?: string }> {
-  const files = await extractZipFiles(zipBuffer);
-  if (files.size === 0) return { success: false, error: "No files in ZIP" };
-
-  // Pages Direct Upload manifest is a plain { path: hash } map (paths should
-  // be rooted with a leading "/"), not an object of { hash, size }.
-  const manifest: Record<string, string> = {};
-  const fileParts: Array<{ hash: string; data: Uint8Array }> = [];
-
-  for (const [path, data] of files) {
-    const hash = await sha256(data);
-    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-    manifest[normalizedPath] = hash;
-    fileParts.push({ hash, data });
+  try {
+    await directUploadDeploy({
+      token,
+      accountId,
+      projectName: name,
+      assets: entries.map((e) => ({ path: e.path, content: e.content })),
+    });
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: (err as Error).message || "Pages deploy failed" };
   }
-
-  const formData = new FormData();
-  formData.append(
-    "manifest",
-    new Blob([JSON.stringify(manifest)], { type: "application/json" })
-  );
-  for (const { hash, data } of fileParts) {
-    formData.append(hash, new Blob([data]), hash);
-  }
-
-  // Do NOT set Content-Type manually — fetch must generate the boundary.
-  const res = await cloudflareFetch(
-    token,
-    `/accounts/${accountId}/pages/projects/${name}/deployments`,
-    { method: "POST", body: formData }
-  );
-
-  const data = await parseCfResponse(res);
-  if (!data.success) {
-    return {
-      success: false,
-      error: data.errors?.[0]?.message || "Pages deploy failed",
-    };
-  }
-  return { success: true };
 }
 
 /**
@@ -150,11 +59,8 @@ async function deployWorker(
   token: string,
   accountId: string,
   name: string,
-  zipBuffer: ArrayBuffer
+  entries: ZipEntry[]
 ): Promise<{ success: boolean; error?: string }> {
-  const files = await extractZipFiles(zipBuffer);
-  if (files.size === 0) return { success: false, error: "No files in ZIP" };
-
   // Pick an entry module. Prefer a common entry filename; otherwise use the
   // first .js/.mjs file in the archive.
   const entryCandidates = [
@@ -167,27 +73,24 @@ async function deployWorker(
   ];
   let entryName: string | undefined;
   for (const candidate of entryCandidates) {
-    if (files.has(candidate)) {
+    if (entries.some((e) => e.path === candidate)) {
       entryName = candidate;
       break;
     }
   }
   if (!entryName) {
-    for (const path of files.keys()) {
-      if (path.endsWith(".js") || path.endsWith(".mjs")) {
-        entryName = path;
-        break;
-      }
-    }
+    entryName = entries.find(
+      (e) => e.path.endsWith(".js") || e.path.endsWith(".mjs")
+    )?.path;
   }
   if (!entryName) {
     return {
       success: false,
-      error: "No JavaScript entry module found in ZIP (expected worker.js or index.js)",
+      error: "ZIP 中没有可用的 JavaScript 入口模块（应为 worker.js 或 index.js）",
     };
   }
 
-  const entryData = files.get(entryName)!;
+  const entryData = entries.find((e) => e.path === entryName)!.content;
 
   // Read existing settings so the upload doesn't wipe bindings / config.
   let existingBindings: unknown[] = [];
@@ -276,6 +179,24 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 
   const zipBuffer = await file.arrayBuffer();
+
+  // 解压一次，供所有目标复用；失败则整体失败，不产出半截部署。
+  let entries: ZipEntry[];
+  try {
+    entries = await unzip(zipBuffer);
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ error: `ZIP 解析失败：${(err as Error).message}` }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
+  }
+  if (entries.length === 0) {
+    return new Response(
+      JSON.stringify({ error: "ZIP 中没有可部署的文件" }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
   const results: BatchResult[] = [];
 
   for (const target of targets) {
@@ -293,8 +214,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     try {
       const result = type === "pages"
-        ? await deployPages(token, accountId, name, zipBuffer)
-        : await deployWorker(token, accountId, name, zipBuffer);
+        ? await deployPages(token, accountId, name, entries)
+        : await deployWorker(token, accountId, name, entries);
       results.push({ name, ...result });
     } catch (err) {
       results.push({ name, success: false, error: (err as Error).message || "Deploy failed" });

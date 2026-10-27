@@ -78,11 +78,21 @@ export async function cloudflareFetch(
 /**
  * Parse Cloudflare API response.
  */
+/** 部分端点（Pages 等）会在响应里带分页元信息，Workers 经典脚本端点没有。 */
+export interface CfResultInfo {
+  count?: number;
+  page?: number;
+  per_page?: number;
+  total_count?: number;
+  cursor?: string;
+}
+
 export interface CfApiResponse<T = unknown> {
   success: boolean;
   result: T;
   errors: Array<{ code: number; message: string }>;
   messages: Array<{ code: number; message: string }>;
+  result_info?: CfResultInfo;
 }
 
 export async function parseCfResponse<T>(

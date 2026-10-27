@@ -1,104 +1,20 @@
 /**
  * POST /api/accounts/:id/pages/:name/deploy - Deploy ZIP to Pages project
- * 
- * Cloudflare Pages Direct Upload API requires:
- * 1. A manifest field with JSON mapping file paths to {hash, size}
- * 2. Each file uploaded as a separate part with its hash as the key
+ *
+ * 通过 Cloudflare Pages Direct Upload 完整协议部署（见 functions/lib/pages-upload.ts）：
+ * upload-token → assets/upload → assets/upsert-hashes → create-deployment → 轮询终态。
+ * ZIP 解压复用 functions/lib/zip.ts（解压失败整体失败，绝不静默跳过）。
  */
 
 import { getCloudflareToken } from "../../../../../lib/cloudflare";
+import { unzip } from "../../../../../lib/zip";
+import {
+  directUploadDeploy,
+  DirectUploadAsset,
+} from "../../../../../lib/pages-upload";
 
 interface Env {
   TOOL_DATA: KVNamespace;
-}
-
-// Simple ZIP file extraction - reads central directory and extracts files
-async function extractZipFiles(zipBuffer: ArrayBuffer): Promise<Map<string, Uint8Array>> {
-  const files = new Map<string, Uint8Array>();
-  const view = new DataView(zipBuffer);
-  const uint8 = new Uint8Array(zipBuffer);
-
-  // Find End of Central Directory record
-  let eocdOffset = zipBuffer.byteLength - 22;
-  while (eocdOffset >= 0) {
-    if (view.getUint32(eocdOffset, true) === 0x06054b50) break;
-    eocdOffset--;
-  }
-
-  if (eocdOffset < 0) {
-    throw new Error("Invalid ZIP file");
-  }
-
-  const centralDirOffset = view.getUint32(eocdOffset + 16, true);
-  const numEntries = view.getUint16(eocdOffset + 10, true);
-
-  let offset = centralDirOffset;
-
-  for (let i = 0; i < numEntries; i++) {
-    // Central Directory entry
-    const compressedSize = view.getUint32(offset + 20, true);
-    const uncompressedSize = view.getUint32(offset + 24, true);
-    const fileNameLength = view.getUint16(offset + 28, true);
-    const extraFieldLength = view.getUint16(offset + 30, true);
-    const commentLength = view.getUint16(offset + 32, true);
-    const localHeaderOffset = view.getUint32(offset + 42, true);
-
-    const fileName = new TextDecoder().decode(
-      uint8.subarray(offset + 46, offset + 46 + fileNameLength)
-    );
-
-    // Skip directories
-    if (!fileName.endsWith("/")) {
-      // Local file header
-      const localFileNameLength = view.getUint16(localHeaderOffset + 26, true);
-      const localExtraLength = view.getUint16(localHeaderOffset + 28, true);
-      const dataOffset = localHeaderOffset + 30 + localFileNameLength + localExtraLength;
-
-      // Extract file data (assuming stored/no compression for simplicity)
-      const compressionMethod = view.getUint16(offset + 10, true);
-      if (compressionMethod === 0) {
-        // Stored (no compression)
-        files.set(fileName, uint8.subarray(dataOffset, dataOffset + uncompressedSize));
-      } else {
-        // Deflated - use DecompressionStream if available
-        try {
-          const compressedData = uint8.subarray(dataOffset, dataOffset + compressedSize);
-          const ds = new DecompressionStream("deflate-raw");
-          const writer = ds.writable.getWriter();
-          writer.write(compressedData);
-          writer.close();
-          const reader = ds.readable.getReader();
-          const chunks: Uint8Array[] = [];
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            chunks.push(value);
-          }
-          const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-          const result = new Uint8Array(totalLength);
-          let pos = 0;
-          for (const chunk of chunks) {
-            result.set(chunk, pos);
-            pos += chunk.length;
-          }
-          files.set(fileName, result);
-        } catch {
-          // Skip files that can't be decompressed
-        }
-      }
-    }
-
-    offset += 46 + fileNameLength + extraFieldLength + commentLength;
-  }
-
-  return files;
-}
-
-// Calculate SHA-256 hash of data
-async function sha256(data: Uint8Array): Promise<string> {
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = new Uint8Array(hashBuffer);
-  return Array.from(hashArray).map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -114,78 +30,95 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     );
   }
 
-  const formData = await request.formData();
-  const file = formData.get("files") as File | null;
+  // 兼容两种调用方式：multipart（file 字段）或 JSON（zip 的 base64）。
+  // 前端当前走 multipart，这里优先解析 multipart。
+  let zipBuffer: ArrayBuffer | null = null;
+  let branch: string | undefined;
+  let commitMessage: string | undefined;
 
-  if (!file) {
+  const contentType = request.headers.get("Content-Type") ?? "";
+  if (contentType.includes("multipart/form-data")) {
+    const formData = await request.formData();
+    const file = formData.get("files") as File | null;
+    if (!file) {
+      return new Response(
+        JSON.stringify({ error: "未收到 ZIP 文件（缺少 files 字段）" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    zipBuffer = await file.arrayBuffer();
+    const branchField = formData.get("branch");
+    if (typeof branchField === "string" && branchField) branch = branchField;
+    const msgField = formData.get("commit_message");
+    if (typeof msgField === "string" && msgField) commitMessage = msgField;
+  } else {
+    // JSON：{ zip: base64, branch?, commit_message? }
+    const body = await request.json<{
+      zip?: string;
+      branch?: string;
+      commit_message?: string;
+    }>().catch(() => null);
+    if (!body?.zip) {
+      return new Response(
+        JSON.stringify({ error: "缺少 ZIP 内容（zip 字段）" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    branch = body.branch;
+    commitMessage = body.commit_message;
+    try {
+      const bin = atob(body.zip);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      zipBuffer = bytes.buffer;
+    } catch {
+      return new Response(
+        JSON.stringify({ error: "ZIP 内容不是合法的 base64" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+  }
+
+  if (!zipBuffer) {
     return new Response(
-      JSON.stringify({ error: "No file provided" }),
+      JSON.stringify({ error: "未收到 ZIP 文件" }),
       { status: 400, headers: { "Content-Type": "application/json" } }
     );
   }
 
   try {
-    const zipBuffer = await file.arrayBuffer();
-    const files = await extractZipFiles(zipBuffer);
+    // 解压：lib/zip.ts 会对损坏/加密/不支持的条目整体抛错，不静默跳过。
+    const entries = await unzip(zipBuffer);
+    const assets: DirectUploadAsset[] = entries.map((e) => ({
+      path: e.path,
+      content: e.content,
+    }));
 
-    if (files.size === 0) {
-      return new Response(
-        JSON.stringify({ error: "No files found in ZIP" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    // Build manifest and prepare file uploads
-    const manifest: Record<string, { hash: string; size: number }> = {};
-    const fileParts: Array<{ hash: string; data: Uint8Array }> = [];
-
-    for (const [path, data] of files) {
-      const hash = await sha256(data);
-      manifest[path] = { hash, size: data.length };
-      fileParts.push({ hash, data });
-    }
-
-    // Create multipart form data for Cloudflare API
-    const uploadFormData = new FormData();
-    uploadFormData.append("manifest", JSON.stringify(manifest));
-
-    // Add each file with its hash as the key
-    for (const { hash, data } of fileParts) {
-      uploadFormData.append(hash, new Blob([data]), hash);
-    }
-
-    const response = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${accountId}/pages/projects/${projectName}/deployments`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: uploadFormData,
-      }
-    );
-
-    const data = await response.json<{ success: boolean; errors?: Array<{ message: string }>; result?: { id: string; url: string } }>();
-
-    if (!data.success) {
-      return new Response(
-        JSON.stringify({
-          error: data.errors?.[0]?.message || "Failed to deploy Pages project",
-        }),
-        { status: response.status, headers: { "Content-Type": "application/json" } }
-      );
-    }
+    const result = await directUploadDeploy({
+      token,
+      accountId,
+      projectName,
+      assets,
+      branch,
+      commitMessage,
+    });
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        deployment: data.result 
+      JSON.stringify({
+        success: true,
+        deployment: {
+          id: result.deploymentId,
+          url: result.url,
+          environment: result.environment,
+          stage: result.stageStatus,
+        },
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     return new Response(
-      JSON.stringify({ error: `Deploy failed: ${err instanceof Error ? err.message : String(err)}` }),
+      JSON.stringify({ error: `部署失败：${message}` }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }

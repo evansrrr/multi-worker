@@ -1,6 +1,11 @@
 /**
- * GET /api/accounts/:id/workers - List workers (paginated)
+ * GET  /api/accounts/:id/workers - List workers
  * POST /api/accounts/:id/workers - Create worker
+ *
+ * 统一走经典脚本端点 `/accounts/{id}/workers/scripts`：
+ * - Beta 的 `/workers/workers` 在官方文档里标注 `# Beta`，字段语义随时可能变；
+ * - settings / bindings / secrets / schedules / subdomain / content 本来就只有经典端点，
+ *   混用两套会导致 id（脚本名）与时间字段对不上。
  */
 
 import {
@@ -13,30 +18,40 @@ interface Env {
   TOOL_DATA: KVNamespace;
 }
 
-export interface Worker {
-  id: string;
-  name: string;
-  created_on: string;
-  updated_on: string;
-  deployed_on?: string;
-  logpush: boolean;
-  subdomain: {
-    enabled: boolean;
-    previews_enabled: boolean;
-  };
-  tags: string[];
+/**
+ * 经典 `/workers/scripts` 返回的 Script 对象（Workers.md 9899 起
+ * "Scripts > List Workers" 与 11555 起 "Domain Types > Script"）。
+ * 实际有 20+ 个字段且随平台演进，这里只声明本项目真正用到的部分。
+ */
+export interface WorkerScript {
+  /** 经典 API 用 id 承载脚本名，没有独立的 name 字段。 */
+  id?: string;
+  created_on?: string;
+  modified_on?: string;
+  logpush?: boolean;
+  tags?: string[];
+  usage_model?: string;
+  handlers?: string[];
+  etag?: string;
+  /** 经典端点确实返回 routes（官方文档确认），用于展示已绑定的路由。 */
+  routes?: Array<{ id?: string; pattern?: string; script?: string }>;
+  [key: string]: unknown;
 }
 
-export interface ResultInfo {
-  count?: number;
-  page?: number;
-  per_page?: number;
-  total_count?: number;
-  cursor?: string;
+/**
+ * 把经典 Script 对齐到前端使用的口径：经典只有 id / created_on / modified_on，
+ * 而前端按 name / updated_on 取用（列表、删除、部署都以 name 为键）。
+ */
+export function normalizeScript(script: WorkerScript) {
+  return {
+    ...script,
+    name: script.id ?? "",
+    updated_on: script.modified_on ?? script.created_on ?? "",
+  };
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const { env, params, request } = context;
+  const { env, params } = context;
   const accountId = params.id as string;
 
   const token = await getCloudflareToken(env, accountId);
@@ -47,18 +62,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     );
   }
 
-  const url = new URL(request.url);
-  const page = url.searchParams.get("page") ?? "1";
-  const perPage = url.searchParams.get("per_page") ?? "20";
-
+  // 经典端点只支持 tags 过滤，不支持 page/per_page（Workers.md 9913
+  // "Scripts > List Workers > Query Parameters" 仅列出 tags），一次返回全部脚本。
+  // 所以这里不再透传分页参数，并在响应里显式说明，避免前端误以为还能翻页。
   const response = await cloudflareFetch(
     token,
-    `/accounts/${accountId}/workers/workers?page=${encodeURIComponent(
-      page
-    )}&per_page=${encodeURIComponent(perPage)}`
+    `/accounts/${accountId}/workers/scripts`
   );
 
-  const data = await parseCfResponse<Worker[]>(response);
+  const data = await parseCfResponse<WorkerScript[]>(response);
 
   if (!data.success) {
     const errorMessage = data.errors?.[0]?.message || "Failed to list workers";
@@ -68,10 +80,18 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     );
   }
 
-  // Cloudflare puts pagination info in result_info alongside result.
-  const anyData = data as unknown as { result_info?: ResultInfo };
+  const workers = (Array.isArray(data.result) ? data.result : []).map(
+    normalizeScript
+  );
+
   return new Response(
-    JSON.stringify({ workers: data.result, result_info: anyData.result_info }),
+    JSON.stringify({
+      workers,
+      pagination: {
+        supported: false,
+        reason: "经典 /workers/scripts 端点不支持分页，已一次返回全部脚本",
+      },
+    }),
     { status: 200, headers: { "Content-Type": "application/json" } }
   );
 };
@@ -96,30 +116,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     );
   }
 
-  // Step 1: create the Worker entity via the Beta JSON endpoint. This only
-  // registers the Worker — it does NOT upload code. The classic scripts
-  // endpoint is the only way to upload a module.
-  const createRes = await cloudflareFetch(
-    token,
-    `/accounts/${accountId}/workers/workers`,
-    {
-      method: "POST",
-      body: JSON.stringify({ name: body.name }),
-    }
-  );
-  const createData = await parseCfResponse<Worker>(createRes);
-  if (!createData.success) {
-    const errorMessage =
-      createData.errors?.[0]?.message || "Failed to create worker";
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 502, headers: { "Content-Type": "application/json" } }
-    );
-  }
-
-  // Step 2: upload the initial script via the classic multipart upload
-  // endpoint. Do NOT set Content-Type manually — fetch generates the
-  // multipart boundary.
+  // 经典端点上传即创建：PUT /workers/scripts/{name} 会直接建出脚本，
+  // 不需要先在 Beta /workers/workers 上注册实体（那套两步走会留下半创建状态）。
   const metadata = {
     main_module: "worker.js",
     compatibility_date: new Date().toISOString().split("T")[0],
@@ -144,6 +142,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     "worker.js"
   );
 
+  // 不要手动设置 Content-Type，fetch 需要自己生成 multipart boundary。
   const uploadRes = await cloudflareFetch(
     token,
     `/accounts/${accountId}/workers/scripts/${encodeURIComponent(body.name)}`,
@@ -152,14 +151,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       body: formData,
     }
   );
-  const uploadData = await parseCfResponse(uploadRes);
+  const uploadData = await parseCfResponse<WorkerScript>(uploadRes);
   if (!uploadData.success) {
-    // Roll back the entity so a half-created Worker doesn't linger.
-    await cloudflareFetch(
-      token,
-      `/accounts/${accountId}/workers/workers/${encodeURIComponent(body.name)}`,
-      { method: "DELETE" }
-    ).catch(() => {});
     const errorMessage =
       uploadData.errors?.[0]?.message || "Failed to upload worker script";
     return new Response(
@@ -169,7 +162,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 
   return new Response(
-    JSON.stringify({ worker: createData.result }),
+    JSON.stringify({
+      worker: normalizeScript(uploadData.result ?? { id: body.name }),
+    }),
     { status: 201, headers: { "Content-Type": "application/json" } }
   );
 };

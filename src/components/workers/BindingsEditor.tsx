@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import Button from '../ui/Button'
 import Input from '../ui/Input'
 import ErrorBanner from '../ui/ErrorBanner'
+import Modal from '../ui/Modal'
 import { useToast } from '../../hooks/useToast'
 import { apiGet, apiPut } from '../../lib/api'
 
@@ -59,8 +60,8 @@ function BindingTypeBadge({ type }: { type: string }) {
     durable_object_namespace: 'bg-indigo-500/10 text-indigo-400',
     hyperdrive: 'bg-red-500/10 text-red-400',
     images: 'bg-teal-500/10 text-teal-400',
-    json: 'bg-gray-500/10 text-gray-400',
-    plain_text: 'bg-gray-500/10 text-gray-400',
+    json: 'bg-surface-3 text-text-muted',
+    plain_text: 'bg-surface-3 text-text-muted',
     r2_bucket: 'bg-amber-500/10 text-amber-400',
     vectorize: 'bg-violet-500/10 text-violet-400',
     version_metadata: 'bg-slate-500/10 text-slate-400',
@@ -68,7 +69,7 @@ function BindingTypeBadge({ type }: { type: string }) {
   }
 
   return (
-    <span className={`px-2 py-0.5 text-xs rounded font-medium ${colors[type] || 'bg-gray-500/10 text-gray-400'}`}>
+    <span className={`px-2 py-0.5 text-xs rounded font-medium ${colors[type] || 'bg-surface-3 text-text-muted'}`}>
       {type.replace(/_/g, ' ')}
     </span>
   )
@@ -161,177 +162,147 @@ export default function BindingsEditor({ accountId, workerName, onClose }: Bindi
 
   if (loading) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-        <div className="relative bg-cf-dark-800 rounded-xl p-6 w-full max-w-2xl shadow-2xl border border-cf-dark-700 mx-4">
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin h-8 w-8 border-4 border-cf-orange border-t-transparent rounded-full" />
-          </div>
+      <Modal open title="Worker Bindings" subtitle={`Configure bindings for ${workerName}`} onClose={onClose} closable={false} maxWidth="max-w-2xl">
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin h-8 w-8 border-4 border-cf-orange border-t-transparent rounded-full" />
         </div>
-      </div>
+      </Modal>
     )
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={() => !saving && onClose()}
-      />
-      <div className="relative bg-cf-dark-800 rounded-xl p-6 w-full max-w-2xl shadow-2xl border border-cf-dark-700 mx-4 max-h-[80vh] flex flex-col">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-xl font-bold text-white">Worker Bindings</h2>
-            <p className="text-sm text-gray-400 mt-1">
-              Configure bindings for {workerName}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            disabled={saving}
-            className="text-gray-400 hover:text-white transition-colors disabled:opacity-50"
-          >
+    <Modal
+      open
+      title="Worker Bindings"
+      subtitle={`Configure bindings for ${workerName}`}
+      onClose={onClose}
+      closable={!saving}
+      maxWidth="max-w-2xl"
+    >
+      {error && <ErrorBanner error={error} onDismiss={() => setError('')} />}
+
+      <div className="flex-1 overflow-y-auto mb-4">
+        {bindings.length === 0 ? (
+          <div className="text-center py-8">
             <svg
-              className="w-5 h-5"
+              className="w-12 h-12 text-text-faint mx-auto mb-4"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
-              strokeWidth={2}
+              strokeWidth={1.5}
             >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                d="M6 18L18 6M6 6l12 12"
+                d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-3.37a4.5 4.5 0 00-1.242-7.244l-4.5-4.5a4.5 4.5 0 00-6.364 6.364L4.34 8.374"
               />
             </svg>
-          </button>
-        </div>
-
-        {error && <ErrorBanner error={error} onDismiss={() => setError('')} />}
-
-        <div className="flex-1 overflow-y-auto mb-4">
-          {bindings.length === 0 ? (
-            <div className="text-center py-8">
-              <svg
-                className="w-12 h-12 text-gray-500 mx-auto mb-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.5}
+            <p className="text-text-muted">No bindings configured</p>
+            <p className="text-sm text-text-faint mt-1">Click "Add Binding" to get started</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {bindings.map((binding, index) => (
+              <div
+                key={`${binding.name}-${index}`}
+                className="flex items-center justify-between p-3 bg-surface-3/50 rounded-lg"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-3.37a4.5 4.5 0 00-1.242-7.244l-4.5-4.5a4.5 4.5 0 00-6.364 6.364L4.34 8.374"
-                />
-              </svg>
-              <p className="text-gray-400">No bindings configured</p>
-              <p className="text-sm text-gray-500 mt-1">Click "Add Binding" to get started</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {bindings.map((binding, index) => (
-                <div
-                  key={`${binding.name}-${index}`}
-                  className="flex items-center justify-between p-3 bg-cf-dark-700/50 rounded-lg"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-cf-dark-600 flex items-center justify-center">
-                      <svg
-                        className="w-4 h-4 text-gray-400"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-3.37a4.5 4.5 0 00-1.242-7.244l-4.5-4.5a4.5 4.5 0 00-6.364 6.364L4.34 8.374"
-                        />
-                      </svg>
-                    </div>
-                    <div>
-                      <span className="text-white font-medium">{binding.name}</span>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <BindingTypeBadge type={binding.type} />
-                      </div>
-                    </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-surface-inset flex items-center justify-center">
+                    <svg
+                      className="w-4 h-4 text-text-muted"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-3.37a4.5 4.5 0 00-1.242-7.244l-4.5-4.5a4.5 4.5 0 00-6.364 6.364L4.34 8.374"
+                      />
+                    </svg>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleEditBinding(index)}
-                      disabled={saving}
-                      className="p-1.5 text-gray-400 hover:text-white transition-colors disabled:opacity-50"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                        />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => handleRemoveBinding(index)}
-                      disabled={saving}
-                      className="p-1.5 text-gray-400 hover:text-red-400 transition-colors disabled:opacity-50"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        />
-                      </svg>
-                    </button>
+                  <div>
+                    <span className="text-text-main font-medium">{binding.name}</span>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <BindingTypeBadge type={binding.type} />
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleEditBinding(index)}
+                    disabled={saving}
+                    className="p-1.5 text-text-muted hover:text-text-main transition-colors disabled:opacity-50"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => handleRemoveBinding(index)}
+                    disabled={saving}
+                    className="p-1.5 text-text-muted hover:text-red-400 transition-colors disabled:opacity-50"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
-        <div className="flex gap-3 pt-4 border-t border-cf-dark-700">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => {
-              setEditingIndex(null)
-              setShowAddModal(true)
-            }}
-            disabled={saving}
-          >
-            Add Binding
-          </Button>
-          <div className="flex-1" />
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={onClose}
-            disabled={saving}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSaveBindings}
-            loading={saving}
-          >
-            Save Bindings
-          </Button>
-        </div>
+      <div className="flex gap-3 pt-4 border-t border-border-subtle">
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => {
+            setEditingIndex(null)
+            setShowAddModal(true)
+          }}
+          disabled={saving}
+        >
+          Add Binding
+        </Button>
+        <div className="flex-1" />
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={onClose}
+          disabled={saving}
+        >
+          Cancel
+        </Button>
+        <Button
+          onClick={handleSaveBindings}
+          loading={saving}
+        >
+          Save Bindings
+        </Button>
       </div>
 
       {showAddModal && (
@@ -346,7 +317,7 @@ export default function BindingsEditor({ accountId, workerName, onClose }: Bindi
           }}
         />
       )}
-    </div>
+    </Modal>
   )
 }
 
@@ -406,241 +377,217 @@ function AddBindingModal({ binding, kvNamespaces, d1Databases, onAdd, onClose }:
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center">
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div className="relative bg-cf-dark-800 rounded-xl p-6 w-full max-w-md shadow-2xl border border-cf-dark-700 mx-4">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-bold text-white">
-            {binding ? 'Edit Binding' : 'Add Binding'}
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
+    <Modal
+      open
+      title={binding ? 'Edit Binding' : 'Add Binding'}
+      onClose={onClose}
+      maxWidth="max-w-md"
+      zClass="z-[60]"
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Input
+          id="binding-name"
+          label="Binding Name"
+          placeholder="MY_KV"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          autoFocus
+          required
+        />
+
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-text-main">
+            Type
+          </label>
+          <select
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+            className="w-full px-3 py-2 bg-surface-2 border border-border-subtle rounded-lg
+              text-text-main
+              focus:outline-none focus:ring-2 focus:ring-cf-orange focus:border-transparent"
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
+            {BINDING_TYPES.map((bt) => (
+              <option key={bt.value} value={bt.value}>
+                {bt.label}
+              </option>
+            ))}
+          </select>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {type === 'kv_namespace' && (
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-text-main">
+              KV Namespace
+            </label>
+            {kvNamespaces.length > 0 ? (
+              <select
+                value={namespaceId}
+                onChange={(e) => setNamespaceId(e.target.value)}
+                className="w-full px-3 py-2 bg-surface-2 border border-border-subtle rounded-lg
+                  text-text-main
+                  focus:outline-none focus:ring-2 focus:ring-cf-orange focus:border-transparent"
+                required
+              >
+                <option value="">Select a KV namespace...</option>
+                {kvNamespaces.map((ns) => (
+                  <option key={ns.id} value={ns.id}>
+                    {ns.title} ({ns.id.slice(0, 8)}...)
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <Input
+                id="namespace-id"
+                placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                value={namespaceId}
+                onChange={(e) => setNamespaceId(e.target.value)}
+                required
+              />
+            )}
+            <p className="text-xs text-text-faint mt-1">
+              {kvNamespaces.length > 0
+                ? 'Select from available namespaces or enter manually'
+                : 'Enter the KV namespace ID manually'}
+            </p>
+          </div>
+        )}
+
+        {type === 'd1' && (
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-text-main">
+              D1 Database
+            </label>
+            {d1Databases.length > 0 ? (
+              <select
+                value={databaseId}
+                onChange={(e) => setDatabaseId(e.target.value)}
+                className="w-full px-3 py-2 bg-surface-2 border border-border-subtle rounded-lg
+                  text-text-main
+                  focus:outline-none focus:ring-2 focus:ring-cf-orange focus:border-transparent"
+                required
+              >
+                <option value="">Select a D1 database...</option>
+                {d1Databases.map((db) => (
+                  <option key={db.uuid} value={db.uuid}>
+                    {db.name} ({db.uuid.slice(0, 8)}...)
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <Input
+                id="database-id"
+                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                value={databaseId}
+                onChange={(e) => setDatabaseId(e.target.value)}
+                required
+              />
+            )}
+            <p className="text-xs text-text-faint mt-1">
+              {d1Databases.length > 0
+                ? 'Select from available databases or enter manually'
+                : 'Enter the D1 database ID manually'}
+            </p>
+          </div>
+        )}
+
+        {(type === 'env_var' || type === 'plain_text') && (
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-text-main">
+              Value
+            </label>
+            <textarea
+              className="w-full px-3 py-2 bg-surface-2 border border-border-subtle rounded-lg
+                text-text-main placeholder-text-faint font-mono text-sm
+                focus:outline-none focus:ring-2 focus:ring-cf-orange focus:border-transparent
+                min-h-[80px] resize-y"
+              placeholder="Enter value..."
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              required
+            />
+          </div>
+        )}
+
+        {type === 'json' && (
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-text-main">
+              JSON Value
+            </label>
+            <textarea
+              className="w-full px-3 py-2 bg-surface-2 border border-border-subtle rounded-lg
+                text-text-main placeholder-text-faint font-mono text-sm
+                focus:outline-none focus:ring-2 focus:ring-cf-orange focus:border-transparent
+                min-h-[80px] resize-y"
+              placeholder='{"key": "value"}'
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              required
+            />
+          </div>
+        )}
+
+        {type === 'service' && (
           <Input
-            id="binding-name"
-            label="Binding Name"
-            placeholder="MY_KV"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            autoFocus
+            id="service-name"
+            label="Service Name"
+            placeholder="my-service"
+            value={serviceName}
+            onChange={(e) => setServiceName(e.target.value)}
             required
           />
+        )}
 
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-gray-300">
-              Type
-            </label>
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              className="w-full px-3 py-2 bg-cf-dark-800 border border-cf-dark-600 rounded-lg 
-                text-white 
-                focus:outline-none focus:ring-2 focus:ring-cf-orange focus:border-transparent"
-            >
-              {BINDING_TYPES.map((bt) => (
-                <option key={bt.value} value={bt.value}>
-                  {bt.label}
-                </option>
-              ))}
-            </select>
-          </div>
+        {type === 'durable_object_namespace' && (
+          <Input
+            id="class-name"
+            label="Class Name"
+            placeholder="MyDurableObject"
+            value={className}
+            onChange={(e) => setClassName(e.target.value)}
+            required
+          />
+        )}
 
-          {type === 'kv_namespace' && (
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-300">
-                KV Namespace
-              </label>
-              {kvNamespaces.length > 0 ? (
-                <select
-                  value={namespaceId}
-                  onChange={(e) => setNamespaceId(e.target.value)}
-                  className="w-full px-3 py-2 bg-cf-dark-800 border border-cf-dark-600 rounded-lg 
-                    text-white 
-                    focus:outline-none focus:ring-2 focus:ring-cf-orange focus:border-transparent"
-                  required
-                >
-                  <option value="">Select a KV namespace...</option>
-                  {kvNamespaces.map((ns) => (
-                    <option key={ns.id} value={ns.id}>
-                      {ns.title} ({ns.id.slice(0, 8)}...)
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <Input
-                  id="namespace-id"
-                  placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                  value={namespaceId}
-                  onChange={(e) => setNamespaceId(e.target.value)}
-                  required
-                />
-              )}
-              <p className="text-xs text-gray-500 mt-1">
-                {kvNamespaces.length > 0 
-                  ? 'Select from available namespaces or enter manually'
-                  : 'Enter the KV namespace ID manually'}
-              </p>
-            </div>
-          )}
+        {type === 'analytics_engine' && (
+          <Input
+            id="dataset"
+            label="Dataset"
+            placeholder="my-dataset"
+            value={dataset}
+            onChange={(e) => setDataset(e.target.value)}
+            required
+          />
+        )}
 
-          {type === 'd1' && (
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-300">
-                D1 Database
-              </label>
-              {d1Databases.length > 0 ? (
-                <select
-                  value={databaseId}
-                  onChange={(e) => setDatabaseId(e.target.value)}
-                  className="w-full px-3 py-2 bg-cf-dark-800 border border-cf-dark-600 rounded-lg 
-                    text-white 
-                    focus:outline-none focus:ring-2 focus:ring-cf-orange focus:border-transparent"
-                  required
-                >
-                  <option value="">Select a D1 database...</option>
-                  {d1Databases.map((db) => (
-                    <option key={db.uuid} value={db.uuid}>
-                      {db.name} ({db.uuid.slice(0, 8)}...)
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <Input
-                  id="database-id"
-                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                  value={databaseId}
-                  onChange={(e) => setDatabaseId(e.target.value)}
-                  required
-                />
-              )}
-              <p className="text-xs text-gray-500 mt-1">
-                {d1Databases.length > 0 
-                  ? 'Select from available databases or enter manually'
-                  : 'Enter the D1 database ID manually'}
-              </p>
-            </div>
-          )}
+        {type === 'r2_bucket' && (
+          <Input
+            id="bucket-name"
+            label="Bucket Name"
+            placeholder="my-bucket"
+            value={bucketName}
+            onChange={(e) => setBucketName(e.target.value)}
+            required
+          />
+        )}
 
-          {(type === 'env_var' || type === 'plain_text') && (
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-300">
-                Value
-              </label>
-              <textarea
-                className="w-full px-3 py-2 bg-cf-dark-800 border border-cf-dark-600 rounded-lg 
-                  text-white placeholder-gray-500 font-mono text-sm
-                  focus:outline-none focus:ring-2 focus:ring-cf-orange focus:border-transparent
-                  min-h-[80px] resize-y"
-                placeholder="Enter value..."
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                required
-              />
-            </div>
-          )}
-
-          {type === 'json' && (
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-300">
-                JSON Value
-              </label>
-              <textarea
-                className="w-full px-3 py-2 bg-cf-dark-800 border border-cf-dark-600 rounded-lg 
-                  text-white placeholder-gray-500 font-mono text-sm
-                  focus:outline-none focus:ring-2 focus:ring-cf-orange focus:border-transparent
-                  min-h-[80px] resize-y"
-                placeholder='{"key": "value"}'
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                required
-              />
-            </div>
-          )}
-
-          {type === 'service' && (
-            <Input
-              id="service-name"
-              label="Service Name"
-              placeholder="my-service"
-              value={serviceName}
-              onChange={(e) => setServiceName(e.target.value)}
-              required
-            />
-          )}
-
-          {type === 'durable_object_namespace' && (
-            <Input
-              id="class-name"
-              label="Class Name"
-              placeholder="MyDurableObject"
-              value={className}
-              onChange={(e) => setClassName(e.target.value)}
-              required
-            />
-          )}
-
-          {type === 'analytics_engine' && (
-            <Input
-              id="dataset"
-              label="Dataset"
-              placeholder="my-dataset"
-              value={dataset}
-              onChange={(e) => setDataset(e.target.value)}
-              required
-            />
-          )}
-
-          {type === 'r2_bucket' && (
-            <Input
-              id="bucket-name"
-              label="Bucket Name"
-              placeholder="my-bucket"
-              value={bucketName}
-              onChange={(e) => setBucketName(e.target.value)}
-              required
-            />
-          )}
-
-          <div className="flex gap-3 pt-2">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={onClose}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={!name}
-              className="flex-1"
-            >
-              {binding ? 'Update' : 'Add'}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="flex gap-3 pt-2">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onClose}
+            className="flex-1"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            disabled={!name}
+            className="flex-1"
+          >
+            {binding ? 'Update' : 'Add'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   )
 }

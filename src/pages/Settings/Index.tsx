@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Layout from '../../components/layout/Layout'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import ErrorBanner from '../../components/ui/ErrorBanner'
@@ -19,17 +18,15 @@ const APPEARANCE_OPTIONS: { value: AppearanceMode; label: string; description: s
 
 export default function Settings() {
   return (
-    <Layout>
-      <div className="max-w-2xl mx-auto space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold text-cf-orange">Settings</h1>
-          <p className="text-gray-400 mt-1">Manage your application settings</p>
-        </div>
-
-        <AppearanceSection />
-        <PasswordSection />
+    <div className="max-w-2xl mx-auto space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold text-cf-orange">Settings</h1>
+        <p className="text-text-muted mt-1">Manage your application settings</p>
       </div>
-    </Layout>
+
+      <AppearanceSection />
+      <PasswordSection />
+    </div>
   )
 }
 
@@ -48,9 +45,9 @@ function AppearanceSection() {
   }
 
   return (
-    <div className="bg-cf-dark-800 rounded-xl p-6 border border-cf-dark-700">
-      <h2 className="text-lg font-semibold text-white mb-1">Appearance</h2>
-      <p className="text-sm text-gray-400 mb-4">Choose your preferred theme</p>
+    <div className="bg-surface-2 rounded-xl p-6 border border-border-subtle">
+      <h2 className="text-lg font-semibold text-text-main mb-1">Appearance</h2>
+      <p className="text-sm text-text-muted mb-4">Choose your preferred theme</p>
 
       <div className="grid grid-cols-3 gap-3">
         {APPEARANCE_OPTIONS.map((option) => (
@@ -61,16 +58,16 @@ function AppearanceSection() {
             className={`p-4 rounded-lg border-2 transition-all text-left ${
               appearance === option.value
                 ? 'border-cf-orange bg-cf-orange/10'
-                : 'border-cf-dark-600 hover:border-cf-dark-700 hover:bg-cf-dark-700/50'
+                : 'border-border-strong hover:border-border-subtle hover:bg-surface-3/50'
             }`}
           >
             <div className="flex items-center gap-2 mb-1">
               <div className={`w-3 h-3 rounded-full ${
-                appearance === option.value ? 'bg-cf-orange' : 'bg-cf-dark-600'
+                appearance === option.value ? 'bg-cf-orange' : 'bg-border-strong'
               }`} />
-              <span className="text-sm font-medium text-white">{option.label}</span>
+              <span className="text-sm font-medium text-text-main">{option.label}</span>
             </div>
-            <p className="text-xs text-gray-400">{option.description}</p>
+            <p className="text-xs text-text-muted">{option.description}</p>
           </button>
         ))}
       </div>
@@ -137,9 +134,9 @@ function PasswordSection() {
   }
 
   return (
-    <div className="bg-cf-dark-800 rounded-xl p-6 border border-cf-dark-700">
-      <h2 className="text-lg font-semibold text-white mb-1">Change Password</h2>
-      <p className="text-sm text-gray-400 mb-4">Update your admin password</p>
+    <div className="bg-surface-2 rounded-xl p-6 border border-border-subtle">
+      <h2 className="text-lg font-semibold text-text-main mb-1">Change Password</h2>
+      <p className="text-sm text-text-muted mb-4">Update your admin password</p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input

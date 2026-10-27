@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import AccountCard from '../../components/accounts/AccountCard'
 import AddAccountModal from '../../components/accounts/AddAccountModal'
 import Button from '../../components/ui/Button'
-import Layout from '../../components/layout/Layout'
 import ErrorBanner from '../../components/ui/ErrorBanner'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { apiGet, apiPost, apiDelete } from '../../lib/api'
@@ -38,6 +38,7 @@ function toAddAccountError(err: unknown): Error {
 }
 
 export default function Accounts() {
+  const navigate = useNavigate()
   const [accounts, setAccounts] = useState<Account[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -98,17 +99,16 @@ export default function Accounts() {
   }
 
   const handleManageAccount = (id: string) => {
-    window.location.href = `/accounts/${id}/workers`
+    navigate(`/accounts/${id}/workers`)
   }
 
   return (
-    <Layout>
-      <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-cf-orange">Accounts</h1>
-            <p className="text-gray-400 mt-1">Manage your Cloudflare accounts</p>
-          </div>
+    <div className="max-w-6xl mx-auto">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-cf-orange">Accounts</h1>
+          <p className="text-text-muted mt-1">Manage your Cloudflare accounts</p>
+        </div>
           <Button onClick={() => setShowAddModal(true)}>
             <svg
               className="w-5 h-5"
@@ -135,9 +135,9 @@ export default function Accounts() {
           </div>
         ) : accounts.length === 0 ? (
           <div className="text-center py-20">
-            <div className="w-16 h-16 rounded-full bg-cf-dark-800 flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 rounded-full bg-surface-2 flex items-center justify-center mx-auto mb-4">
               <svg
-                className="w-8 h-8 text-gray-500"
+                className="w-8 h-8 text-text-faint"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -150,8 +150,8 @@ export default function Accounts() {
                 />
               </svg>
             </div>
-            <h3 className="text-xl font-semibold text-white mb-2">No accounts yet</h3>
-            <p className="text-gray-400 mb-6">
+            <h3 className="text-xl font-semibold text-text-main mb-2">No accounts yet</h3>
+            <p className="text-text-muted mb-6">
               Add your first Cloudflare account to get started.
             </p>
             <Button onClick={() => setShowAddModal(true)}>
@@ -174,7 +174,6 @@ export default function Accounts() {
             ))}
           </div>
         )}
-      </div>
 
       <AddAccountModal
         open={showAddModal}
@@ -199,6 +198,6 @@ export default function Accounts() {
         onConfirm={confirmDeleteAccount}
         onClose={() => setDeleteTarget(null)}
       />
-    </Layout>
+    </div>
   )
 }

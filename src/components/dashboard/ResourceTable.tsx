@@ -27,7 +27,7 @@ function resourceKey(r: ResourceItem): string {
 
 function SortIndicator({ field, sortField, sortDir }: { field: string; sortField: string; sortDir: 'asc' | 'desc' }) {
   if (field !== sortField) {
-    return <span className="text-gray-600 ml-1">↕</span>
+    return <span className="text-text-faint ml-1">↕</span>
   }
   return <span className="text-cf-orange ml-1">{sortDir === 'asc' ? '↑' : '↓'}</span>
 }
@@ -59,7 +59,7 @@ export default function ResourceTable({
     return (
       <div className="text-center py-12">
         <svg
-          className="w-12 h-12 text-gray-500 mx-auto mb-4"
+          className="w-12 h-12 text-text-faint mx-auto mb-4"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -71,7 +71,7 @@ export default function ResourceTable({
             d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0l-3-3m3 3l3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"
           />
         </svg>
-        <p className="text-gray-400">No resources found</p>
+        <p className="text-text-muted">No resources found</p>
       </div>
     )
   }
@@ -82,38 +82,38 @@ export default function ResourceTable({
     <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
-          <tr className="border-b border-cf-dark-700">
+          <tr className="border-b border-border-subtle">
             <th className="text-left py-3 px-4 w-10">
               <input
                 type="checkbox"
                 checked={allSelected}
                 onChange={onSelectAll}
-                className="w-4 h-4 rounded border-gray-500 bg-cf-dark-700 text-cf-orange focus:ring-cf-orange/50 cursor-pointer"
+                className="w-4 h-4 rounded border-border-strong bg-surface-3 text-cf-orange focus:ring-cf-orange/50 cursor-pointer"
               />
             </th>
             <th
-              className="text-left py-3 px-4 text-sm font-medium text-gray-400 cursor-pointer select-none hover:text-gray-200"
+              className="text-left py-3 px-4 text-sm font-medium text-text-muted cursor-pointer select-none hover:text-text-main"
               onClick={() => onSort('name')}
             >
               Name
               <SortIndicator field="name" sortField={sortField} sortDir={sortDir} />
             </th>
             <th
-              className="text-left py-3 px-4 text-sm font-medium text-gray-400 cursor-pointer select-none hover:text-gray-200"
+              className="text-left py-3 px-4 text-sm font-medium text-text-muted cursor-pointer select-none hover:text-text-main"
               onClick={() => onSort('type')}
             >
               Type
               <SortIndicator field="type" sortField={sortField} sortDir={sortDir} />
             </th>
             <th
-              className="text-left py-3 px-4 text-sm font-medium text-gray-400 cursor-pointer select-none hover:text-gray-200"
+              className="text-left py-3 px-4 text-sm font-medium text-text-muted cursor-pointer select-none hover:text-text-main"
               onClick={() => onSort('accountName')}
             >
               Account
               <SortIndicator field="accountName" sortField={sortField} sortDir={sortDir} />
             </th>
             <th
-              className="text-left py-3 px-4 text-sm font-medium text-gray-400 cursor-pointer select-none hover:text-gray-200"
+              className="text-left py-3 px-4 text-sm font-medium text-text-muted cursor-pointer select-none hover:text-text-main"
               onClick={() => onSort('modifiedOn')}
             >
               Modified
@@ -130,8 +130,8 @@ export default function ResourceTable({
               <tr
                 key={key}
                 onClick={() => onRowClick(resource)}
-                className={`border-b border-cf-dark-700/50 transition-colors cursor-pointer ${
-                  isSelected ? 'bg-cf-dark-700/50' : 'hover:bg-cf-dark-700/30'
+                className={`border-b border-border-subtle transition-colors cursor-pointer ${
+                  isSelected ? 'bg-surface-3' : 'hover:bg-surface-3'
                 }`}
               >
                 <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
@@ -139,17 +139,17 @@ export default function ResourceTable({
                     type="checkbox"
                     checked={isSelected}
                     onChange={() => onSelect(key)}
-                    className="w-4 h-4 rounded border-gray-500 bg-cf-dark-700 text-cf-orange focus:ring-cf-orange/50 cursor-pointer"
+                    className="w-4 h-4 rounded border-border-strong bg-surface-3 text-cf-orange focus:ring-cf-orange/50 cursor-pointer"
                   />
                 </td>
                 <td className="py-3 px-4">
-                  <span className="text-white font-medium">{resource.name}</span>
+                  <span className="text-text-main font-medium">{resource.name}</span>
                 </td>
                 <td className="py-3 px-4">
                   <TypeBadge type={resource.type} />
                 </td>
-                <td className="py-3 px-4 text-sm text-gray-400">{resource.accountName}</td>
-                <td className="py-3 px-4 text-sm text-gray-400">{formatDate(resource.modifiedOn)}</td>
+                <td className="py-3 px-4 text-sm text-text-muted">{resource.accountName}</td>
+                <td className="py-3 px-4 text-sm text-text-muted">{formatDate(resource.modifiedOn)}</td>
               </tr>
             )
           })}

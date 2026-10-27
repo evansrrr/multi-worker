@@ -23,7 +23,7 @@ export default function AccountCard({
   const shortId = id.length > 12 ? `${id.slice(0, 8)}...` : id
 
   return (
-    <div className="bg-cf-dark-800 rounded-xl p-6 shadow-lg border border-cf-dark-700 hover:border-cf-orange/30 transition-colors">
+    <div className="bg-surface-2 rounded-xl p-6 shadow-lg border border-border-subtle hover:border-cf-orange/30 transition-colors">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-cf-orange/10 flex items-center justify-center">
@@ -42,14 +42,14 @@ export default function AccountCard({
             </svg>
           </div>
           <div>
-            <h3 className="text-white font-semibold text-lg">{name}</h3>
+            <h3 className="text-text-main font-semibold text-lg">{name}</h3>
             {email && (
-              <p className="text-gray-400 text-sm">{email}</p>
+              <p className="text-text-muted text-sm">{email}</p>
             )}
           </div>
         </div>
         {type && (
-          <span className="px-2 py-1 text-xs rounded-full bg-cf-dark-700 text-gray-300 capitalize">
+          <span className="px-2 py-1 text-xs rounded-full bg-surface-3 text-text-main capitalize">
             {type}
           </span>
         )}
@@ -57,8 +57,8 @@ export default function AccountCard({
 
       <div className="space-y-2 mb-6">
         <div className="flex items-center gap-2 text-sm">
-          <span className="text-gray-500">ID:</span>
-          <code className="text-gray-300 bg-cf-dark-900 px-2 py-0.5 rounded text-xs font-mono">
+          <span className="text-text-faint">ID:</span>
+          <code className="text-text-main bg-surface px-2 py-0.5 rounded text-xs font-mono">
             {shortId}
           </code>
         </div>

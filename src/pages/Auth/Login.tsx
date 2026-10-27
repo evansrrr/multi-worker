@@ -27,12 +27,12 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-cf-dark-900 text-white flex items-center justify-center p-4">
+    <div className="min-h-screen bg-surface text-text-main flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="bg-cf-dark-800 rounded-xl p-8 shadow-xl">
+        <div className="bg-surface-2 rounded-xl p-8 shadow-xl">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-cf-orange mb-2">MultiWorker</h1>
-            <p className="text-gray-400">Sign in to manage your Cloudflare resources</p>
+            <p className="text-text-muted">Sign in to manage your Cloudflare resources</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">

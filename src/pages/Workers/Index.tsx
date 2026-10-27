@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
-import Layout from '../../components/layout/Layout'
+import { useNavigate, useParams } from 'react-router-dom'
 import WorkerTable from '../../components/workers/WorkerTable'
 import CreateWorkerModal from '../../components/workers/CreateWorkerModal'
 import BindingsEditor from '../../components/workers/BindingsEditor'
@@ -39,6 +38,7 @@ interface WorkersResponse {
 
 export default function Workers() {
   const { accountId } = useParams()
+  const navigate = useNavigate()
   const { addToast } = useToast()
   const [workers, setWorkers] = useState<Worker[]>([])
   const [loading, setLoading] = useState(true)
@@ -134,13 +134,12 @@ export default function Workers() {
   }
 
   return (
-    <Layout>
-      <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-cf-orange">Workers</h1>
-            <p className="text-gray-400 mt-1">Manage workers for this account</p>
-          </div>
+    <div className="max-w-6xl mx-auto">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-cf-orange">Workers</h1>
+          <p className="text-text-muted mt-1">Manage workers for this account</p>
+        </div>
           <Button onClick={() => setShowCreateModal(true)}>
             <svg
               className="w-5 h-5"
@@ -166,16 +165,19 @@ export default function Workers() {
             <div className="animate-spin h-8 w-8 border-4 border-cf-orange border-t-transparent rounded-full" />
           </div>
         ) : (
-          <div className="bg-cf-dark-800 rounded-xl shadow-lg border border-cf-dark-700">
+          <div className="bg-surface-2 rounded-xl shadow-lg border border-border-subtle">
             <WorkerTable
               workers={workers}
               onDelete={handleDeleteWorker}
               onManageBindings={(name) => setBindingsWorkerName(name)}
               onDeploy={(name) => setDeployWorkerName(name)}
+              onRowClick={(name) =>
+                navigate(`/accounts/${accountId}/workers/${encodeURIComponent(name)}`)
+              }
               deletingName={deletingName}
             />
             {hasMore && (
-              <div className="p-4 border-t border-cf-dark-700">
+              <div className="p-4 border-t border-border-subtle">
                 <Button
                   variant="secondary"
                   onClick={() => fetchWorkers(page + 1, true)}
@@ -188,7 +190,6 @@ export default function Workers() {
             )}
           </div>
         )}
-      </div>
 
       <CreateWorkerModal
         open={showCreateModal}
@@ -229,6 +230,6 @@ export default function Workers() {
         onConfirm={performDeleteWorker}
         onClose={() => setDeleteTarget(null)}
       />
-    </Layout>
+    </div>
   )
 }

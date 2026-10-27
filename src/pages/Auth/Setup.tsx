@@ -39,12 +39,12 @@ export default function Setup() {
   }
 
   return (
-    <div className="min-h-screen bg-cf-dark-900 text-white flex items-center justify-center p-4">
+    <div className="min-h-screen bg-surface text-text-main flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="bg-cf-dark-800 rounded-xl p-8 shadow-xl">
+        <div className="bg-surface-2 rounded-xl p-8 shadow-xl">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-cf-orange mb-2">Welcome to MultiWorker</h1>
-            <p className="text-gray-400">Set up your admin password to get started</p>
+            <p className="text-text-muted">Set up your admin password to get started</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -78,7 +78,7 @@ export default function Setup() {
             </Button>
           </form>
 
-          <p className="mt-6 text-sm text-gray-500 text-center">
+          <p className="mt-6 text-sm text-text-faint text-center">
             This password will be used to access your Cloudflare management dashboard.
           </p>
         </div>

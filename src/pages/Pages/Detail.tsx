@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import Layout from '../../components/layout/Layout'
 import Button from '../../components/ui/Button'
 import ErrorBanner from '../../components/ui/ErrorBanner'
 import { useToast } from '../../hooks/useToast'
@@ -90,27 +89,24 @@ export default function PagesDetail() {
 
   if (loading) {
     return (
-      <Layout>
-        <div className="flex items-center justify-center py-20">
-          <div className="animate-spin h-8 w-8 border-4 border-cf-orange border-t-transparent rounded-full" />
-        </div>
-      </Layout>
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin h-8 w-8 border-4 border-cf-orange border-t-transparent rounded-full" />
+      </div>
     )
   }
 
   return (
-    <Layout>
-      <div className="max-w-4xl mx-auto">
-        {/* Back button */}
-        <button
-          onClick={() => navigate('/dashboard')}
-          className="flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6 transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-          Back to Dashboard
-        </button>
+    <div className="max-w-4xl mx-auto">
+      {/* Back button */}
+      <button
+        onClick={() => navigate(`/accounts/${accountId}/pages`)}
+        className="flex items-center gap-2 text-sm text-text-muted hover:text-text-main mb-6 transition-colors"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+        Back to Pages
+      </button>
 
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -121,7 +117,7 @@ export default function PagesDetail() {
                 Pages
               </span>
             </div>
-            <p className="text-gray-400 mt-1">Pages project detail and configuration</p>
+            <p className="text-text-muted mt-1">Pages project detail and configuration</p>
           </div>
         </div>
 
@@ -129,24 +125,24 @@ export default function PagesDetail() {
         <ErrorBanner error={error} onDismiss={() => setError('')} />
 
         {/* Basic Info Card */}
-        <div className="bg-cf-dark-800 rounded-xl border border-cf-dark-700 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-white mb-4">Basic Information</h2>
+        <div className="bg-surface-2 rounded-xl border border-border-subtle p-6 mb-6">
+          <h2 className="text-lg font-semibold text-text-main mb-4">Basic Information</h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-sm text-gray-400">ID</p>
-              <p className="text-white font-mono text-sm">{project?.id || '-'}</p>
+              <p className="text-sm text-text-muted">ID</p>
+              <p className="text-text-main font-mono text-sm">{project?.id || '-'}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-400">Name</p>
-              <p className="text-white">{project?.name || '-'}</p>
+              <p className="text-sm text-text-muted">Name</p>
+              <p className="text-text-main">{project?.name || '-'}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-400">Created</p>
-              <p className="text-white">{project?.created_on ? formatDate(project.created_on) : '-'}</p>
+              <p className="text-sm text-text-muted">Created</p>
+              <p className="text-text-main">{project?.created_on ? formatDate(project.created_on) : '-'}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-400">Subdomain</p>
-              <p className="text-white">
+              <p className="text-sm text-text-muted">Subdomain</p>
+              <p className="text-text-main">
                 {project?.subdomain ? (
                   <a
                     href={`https://${project.subdomain}.pages.dev`}
@@ -166,12 +162,12 @@ export default function PagesDetail() {
           {/* Custom Domains */}
           {project?.domains && project.domains.length > 0 && (
             <div className="mt-6">
-              <p className="text-sm text-gray-400 mb-2">Custom Domains</p>
+              <p className="text-sm text-text-muted mb-2">Custom Domains</p>
               <div className="space-y-2">
                 {project.domains.map((domain, index) => (
                   <div
                     key={index}
-                    className="flex items-center gap-2 bg-cf-dark-700 rounded-lg px-3 py-2 text-sm"
+                    className="flex items-center gap-2 bg-surface-3 rounded-lg px-3 py-2 text-sm"
                   >
                     <span className="text-blue-400 font-mono">{domain}</span>
                   </div>
@@ -182,9 +178,9 @@ export default function PagesDetail() {
         </div>
 
         {/* Deploy Section */}
-        <div className="bg-cf-dark-800 rounded-xl border border-cf-dark-700 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-white mb-4">Deploy</h2>
-          <p className="text-gray-400 text-sm mb-4">
+        <div className="bg-surface-2 rounded-xl border border-border-subtle p-6 mb-6">
+          <h2 className="text-lg font-semibold text-text-main mb-4">Deploy</h2>
+          <p className="text-text-muted text-sm mb-4">
             Upload a ZIP file to deploy a new version of this Pages project.
           </p>
           <input
@@ -210,11 +206,10 @@ export default function PagesDetail() {
         </div>
 
         {/* Config Section */}
-        <div className="bg-cf-dark-800 rounded-xl border border-cf-dark-700 p-6">
-          <h2 className="text-lg font-semibold text-white mb-4">Configuration</h2>
-          <p className="text-gray-400 text-sm">Configuration management coming soon.</p>
+        <div className="bg-surface-2 rounded-xl border border-border-subtle p-6">
+          <h2 className="text-lg font-semibold text-text-main mb-4">Configuration</h2>
+          <p className="text-text-muted text-sm">Configuration management coming soon.</p>
         </div>
       </div>
-    </Layout>
   )
 }

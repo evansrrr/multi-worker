@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Layout from '../../components/layout/Layout'
 import ResourceTable from '../../components/dashboard/ResourceTable'
 import BatchToolbar from '../../components/dashboard/BatchToolbar'
 import BatchDeployModal from '../../components/dashboard/BatchDeployModal'
@@ -197,52 +196,50 @@ export default function Dashboard() {
   }
 
   return (
-    <Layout>
-      <div className="p-6">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-white mb-1">Dashboard</h1>
-          <p className="text-gray-400">Overview of all your Cloudflare resources</p>
-        </div>
+    <div>
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-text-main mb-1">Dashboard</h1>
+        <p className="text-text-muted">Overview of all your Cloudflare resources</p>
+      </div>
 
-        {/* Error banner */}
-        <ErrorBanner error={error} onDismiss={() => setError('')} />
+      {/* Error banner */}
+      <ErrorBanner error={error} onDismiss={() => setError('')} />
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <div className="bg-cf-dark-800 rounded-xl p-4 border border-cf-dark-700">
-            <p className="text-sm text-gray-400 mb-1">Total Resources</p>
-            <p className="text-2xl font-bold text-white">{stats.total}</p>
-          </div>
-          <div className="bg-cf-dark-800 rounded-xl p-4 border border-cf-dark-700">
-            <p className="text-sm text-gray-400 mb-1">Workers</p>
-            <p className="text-2xl font-bold text-blue-400">{stats.workers}</p>
-          </div>
-          <div className="bg-cf-dark-800 rounded-xl p-4 border border-cf-dark-700">
-            <p className="text-sm text-gray-400 mb-1">Pages</p>
-            <p className="text-2xl font-bold text-green-400">{stats.pages}</p>
-          </div>
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div className="bg-surface-2 rounded-xl p-4 border border-border-subtle">
+          <p className="text-sm text-text-muted mb-1">Total Resources</p>
+          <p className="text-2xl font-bold text-text-main">{stats.total}</p>
         </div>
+        <div className="bg-surface-2 rounded-xl p-4 border border-border-subtle">
+          <p className="text-sm text-text-muted mb-1">Workers</p>
+          <p className="text-2xl font-bold text-blue-400">{stats.workers}</p>
+        </div>
+        <div className="bg-surface-2 rounded-xl p-4 border border-border-subtle">
+          <p className="text-sm text-text-muted mb-1">Pages</p>
+          <p className="text-2xl font-bold text-green-400">{stats.pages}</p>
+        </div>
+      </div>
 
-        {/* Table */}
-        <div className="bg-cf-dark-800 rounded-xl border border-cf-dark-700">
-          {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <div className="animate-spin h-8 w-8 border-4 border-cf-orange border-t-transparent rounded-full" />
-            </div>
-          ) : (
-            <ResourceTable
-              resources={sortedResources}
-              selected={selected}
-              onSelect={handleSelect}
-              onSelectAll={handleSelectAll}
-              onRowClick={handleRowClick}
-              sortField={sortField}
-              sortDir={sortDir}
-              onSort={handleSort}
-            />
-          )}
-        </div>
+      {/* Table */}
+      <div className="bg-surface-2 rounded-xl border border-border-subtle">
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="animate-spin h-8 w-8 border-4 border-cf-orange border-t-transparent rounded-full" />
+          </div>
+        ) : (
+          <ResourceTable
+            resources={sortedResources}
+            selected={selected}
+            onSelect={handleSelect}
+            onSelectAll={handleSelectAll}
+            onRowClick={handleRowClick}
+            sortField={sortField}
+            sortDir={sortDir}
+            onSort={handleSort}
+          />
+        )}
       </div>
 
       {/* Batch toolbar */}
@@ -278,6 +275,6 @@ export default function Dashboard() {
         onClose={() => setShowDeployModal(false)}
         onDeploy={handleBatchDeploy}
       />
-    </Layout>
+    </div>
   )
 }

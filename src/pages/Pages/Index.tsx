@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
-import Layout from '../../components/layout/Layout'
+import { useNavigate, useParams } from 'react-router-dom'
 import ProjectTable from '../../components/pages/ProjectTable'
 import CreateProjectModal from '../../components/pages/CreateProjectModal'
 import DeployModal from '../../components/pages/DeployModal'
@@ -43,6 +42,7 @@ interface ProjectsResponse {
 
 export default function Pages() {
   const { accountId } = useParams()
+  const navigate = useNavigate()
   const { addToast } = useToast()
   const [projects, setProjects] = useState<PagesProject[]>([])
   const [loading, setLoading] = useState(true)
@@ -142,13 +142,12 @@ export default function Pages() {
   }
 
   return (
-    <Layout>
-      <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-cf-orange">Pages</h1>
-            <p className="text-gray-400 mt-1">Manage Pages projects for this account</p>
-          </div>
+    <div className="max-w-6xl mx-auto">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-cf-orange">Pages</h1>
+          <p className="text-text-muted mt-1">Manage Pages projects for this account</p>
+        </div>
           <Button onClick={() => setShowCreateModal(true)}>
             <svg
               className="w-5 h-5"
@@ -174,7 +173,7 @@ export default function Pages() {
             <div className="animate-spin h-8 w-8 border-4 border-cf-orange border-t-transparent rounded-full" />
           </div>
         ) : (
-          <div className="bg-cf-dark-800 rounded-xl shadow-lg border border-cf-dark-700">
+          <div className="bg-surface-2 rounded-xl shadow-lg border border-border-subtle">
             <ProjectTable
               projects={projects}
               onDelete={handleDeleteProject}
@@ -182,11 +181,14 @@ export default function Pages() {
                 setDeployProjectName(name)
                 setShowDeployModal(true)
               }}
+              onRowClick={(name) =>
+                navigate(`/accounts/${accountId}/pages/${encodeURIComponent(name)}`)
+              }
               deletingName={deletingName}
               deployingName={deployingName}
             />
             {hasMore && (
-              <div className="p-4 border-t border-cf-dark-700">
+              <div className="p-4 border-t border-border-subtle">
                 <Button
                   variant="secondary"
                   onClick={() => fetchProjects(page + 1, true)}
@@ -199,7 +201,6 @@ export default function Pages() {
             )}
           </div>
         )}
-      </div>
 
       <CreateProjectModal
         open={showCreateModal}
@@ -233,6 +234,6 @@ export default function Pages() {
         onConfirm={performDeleteProject}
         onClose={() => setDeleteTarget(null)}
       />
-    </Layout>
+    </div>
   )
 }

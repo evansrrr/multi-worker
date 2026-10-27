@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Button from '../ui/Button'
 import Input from '../ui/Input'
 import ErrorBanner from '../ui/ErrorBanner'
+import Modal from '../ui/Modal'
 
 interface CreateProjectModalProps {
   open: boolean
@@ -41,79 +42,53 @@ export default function CreateProjectModal({ open, onClose, onCreate }: CreatePr
     }
   }
 
-  if (!open) return null
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={handleClose}
-      />
-      <div className="relative bg-cf-dark-800 rounded-xl p-6 w-full max-w-lg shadow-2xl border border-cf-dark-700 mx-4">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-white">Create Pages Project</h2>
-          <button
+    <Modal
+      open={open}
+      title="Create Pages Project"
+      onClose={handleClose}
+      closable={!loading}
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Input
+          id="project-name"
+          label="Project Name"
+          placeholder="my-pages-project"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          autoFocus
+        />
+
+        <Input
+          id="production-branch"
+          label="Production Branch"
+          placeholder="main"
+          value={productionBranch}
+          onChange={(e) => setProductionBranch(e.target.value)}
+        />
+
+        {error && <ErrorBanner error={error} onDismiss={() => setError('')} />}
+
+        <div className="flex gap-3 pt-2">
+          <Button
+            type="button"
+            variant="secondary"
             onClick={handleClose}
             disabled={loading}
-            className="text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+            className="flex-1"
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            loading={loading}
+            disabled={!name}
+            className="flex-1"
+          >
+            Create Project
+          </Button>
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            id="project-name"
-            label="Project Name"
-            placeholder="my-pages-project"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            autoFocus
-          />
-
-          <Input
-            id="production-branch"
-            label="Production Branch"
-            placeholder="main"
-            value={productionBranch}
-            onChange={(e) => setProductionBranch(e.target.value)}
-          />
-
-          {error && <ErrorBanner error={error} onDismiss={() => setError('')} />}
-
-          <div className="flex gap-3 pt-2">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleClose}
-              disabled={loading}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              loading={loading}
-              disabled={!name}
-              className="flex-1"
-            >
-              Create Project
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   )
 }

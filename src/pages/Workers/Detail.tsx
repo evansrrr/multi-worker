@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import Layout from '../../components/layout/Layout'
 import Button from '../../components/ui/Button'
 import ErrorBanner from '../../components/ui/ErrorBanner'
 import { useToast } from '../../hooks/useToast'
@@ -97,27 +96,24 @@ export default function WorkerDetail() {
 
   if (loading) {
     return (
-      <Layout>
-        <div className="flex items-center justify-center py-20">
-          <div className="animate-spin h-8 w-8 border-4 border-cf-orange border-t-transparent rounded-full" />
-        </div>
-      </Layout>
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin h-8 w-8 border-4 border-cf-orange border-t-transparent rounded-full" />
+      </div>
     )
   }
 
   return (
-    <Layout>
-      <div className="max-w-4xl mx-auto">
-        {/* Back button */}
-        <button
-          onClick={() => navigate('/dashboard')}
-          className="flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6 transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-          Back to Dashboard
-        </button>
+    <div className="max-w-4xl mx-auto">
+      {/* Back button */}
+      <button
+        onClick={() => navigate(`/accounts/${accountId}/workers`)}
+        className="flex items-center gap-2 text-sm text-text-muted hover:text-text-main mb-6 transition-colors"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+        Back to Workers
+      </button>
 
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -128,7 +124,7 @@ export default function WorkerDetail() {
                 Worker
               </span>
             </div>
-            <p className="text-gray-400 mt-1">Worker detail and configuration</p>
+            <p className="text-text-muted mt-1">Worker detail and configuration</p>
           </div>
         </div>
 
@@ -136,24 +132,24 @@ export default function WorkerDetail() {
         <ErrorBanner error={error} onDismiss={() => setError('')} />
 
         {/* Basic Info Card */}
-        <div className="bg-cf-dark-800 rounded-xl border border-cf-dark-700 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-white mb-4">Basic Information</h2>
+        <div className="bg-surface-2 rounded-xl border border-border-subtle p-6 mb-6">
+          <h2 className="text-lg font-semibold text-text-main mb-4">Basic Information</h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-sm text-gray-400">ID</p>
-              <p className="text-white font-mono text-sm">{worker?.id || '-'}</p>
+              <p className="text-sm text-text-muted">ID</p>
+              <p className="text-text-main font-mono text-sm">{worker?.id || '-'}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-400">Name</p>
-              <p className="text-white">{worker?.name || '-'}</p>
+              <p className="text-sm text-text-muted">Name</p>
+              <p className="text-text-main">{worker?.name || '-'}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-400">Created</p>
-              <p className="text-white">{worker?.created_on ? formatDate(worker.created_on) : '-'}</p>
+              <p className="text-sm text-text-muted">Created</p>
+              <p className="text-text-main">{worker?.created_on ? formatDate(worker.created_on) : '-'}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-400">Modified</p>
-              <p className="text-white">
+              <p className="text-sm text-text-muted">Modified</p>
+              <p className="text-text-main">
                 {worker?.updated_on || worker?.modified_on
                   ? formatDate(worker.updated_on || worker.modified_on!)
                   : '-'}
@@ -164,15 +160,15 @@ export default function WorkerDetail() {
           {/* Routes */}
           {worker?.routes && worker.routes.length > 0 && (
             <div className="mt-6">
-              <p className="text-sm text-gray-400 mb-2">Routes</p>
+              <p className="text-sm text-text-muted mb-2">Routes</p>
               <div className="space-y-2">
                 {worker.routes.map((route, index) => (
                   <div
                     key={index}
-                    className="flex items-center gap-2 bg-cf-dark-700 rounded-lg px-3 py-2 text-sm"
+                    className="flex items-center gap-2 bg-surface-3 rounded-lg px-3 py-2 text-sm"
                   >
                     <span className="text-blue-400 font-mono">{route.pattern}</span>
-                    <span className="text-gray-500">({route.zone_name})</span>
+                    <span className="text-text-faint">({route.zone_name})</span>
                   </div>
                 ))}
               </div>
@@ -181,9 +177,9 @@ export default function WorkerDetail() {
         </div>
 
         {/* Deploy Section */}
-        <div className="bg-cf-dark-800 rounded-xl border border-cf-dark-700 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-white mb-4">Deploy</h2>
-          <p className="text-gray-400 text-sm mb-4">
+        <div className="bg-surface-2 rounded-xl border border-border-subtle p-6 mb-6">
+          <h2 className="text-lg font-semibold text-text-main mb-4">Deploy</h2>
+          <p className="text-text-muted text-sm mb-4">
             Upload a ZIP file to deploy a new version of this worker.
           </p>
           <input
@@ -209,11 +205,10 @@ export default function WorkerDetail() {
         </div>
 
         {/* Config Section */}
-        <div className="bg-cf-dark-800 rounded-xl border border-cf-dark-700 p-6">
-          <h2 className="text-lg font-semibold text-white mb-4">Configuration</h2>
-          <p className="text-gray-400 text-sm">Configuration management coming soon.</p>
+        <div className="bg-surface-2 rounded-xl border border-border-subtle p-6">
+          <h2 className="text-lg font-semibold text-text-main mb-4">Configuration</h2>
+          <p className="text-text-muted text-sm">Configuration management coming soon.</p>
         </div>
       </div>
-    </Layout>
   )
 }

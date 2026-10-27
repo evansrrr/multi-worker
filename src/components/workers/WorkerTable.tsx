@@ -19,6 +19,7 @@ interface WorkerTableProps {
   onManageBindings: (name: string) => void
   onDeploy: (name: string) => void
   deletingName: string | null
+  onRowClick?: (name: string) => void
 }
 
 function formatDate(dateStr: string): string {
@@ -31,12 +32,12 @@ function formatDate(dateStr: string): string {
   })
 }
 
-export default function WorkerTable({ workers, onDelete, onManageBindings, onDeploy, deletingName }: WorkerTableProps) {
+export default function WorkerTable({ workers, onDelete, onManageBindings, onDeploy, deletingName, onRowClick }: WorkerTableProps) {
   if (workers.length === 0) {
     return (
       <div className="text-center py-12">
         <svg
-          className="w-12 h-12 text-gray-500 mx-auto mb-4"
+          className="w-12 h-12 text-text-faint mx-auto mb-4"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -48,7 +49,7 @@ export default function WorkerTable({ workers, onDelete, onManageBindings, onDep
             d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0l-3-3m3 3l3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"
           />
         </svg>
-        <p className="text-gray-400">No workers found</p>
+        <p className="text-text-muted">No workers found</p>
       </div>
     )
   }
@@ -57,19 +58,20 @@ export default function WorkerTable({ workers, onDelete, onManageBindings, onDep
     <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
-          <tr className="border-b border-cf-dark-700">
-            <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Name</th>
-            <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Created</th>
-            <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Modified</th>
-            <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Routes</th>
-            <th className="text-right py-3 px-4 text-sm font-medium text-gray-400">Actions</th>
+          <tr className="border-b border-border-subtle">
+            <th className="text-left py-3 px-4 text-sm font-medium text-text-muted">Name</th>
+            <th className="text-left py-3 px-4 text-sm font-medium text-text-muted">Created</th>
+            <th className="text-left py-3 px-4 text-sm font-medium text-text-muted">Modified</th>
+            <th className="text-left py-3 px-4 text-sm font-medium text-text-muted">Routes</th>
+            <th className="text-right py-3 px-4 text-sm font-medium text-text-muted">Actions</th>
           </tr>
         </thead>
         <tbody>
           {workers.map((worker) => (
             <tr
               key={worker.id}
-              className="border-b border-cf-dark-700/50 hover:bg-cf-dark-700/30 transition-colors"
+              onClick={() => onRowClick?.(worker.name)}
+              className="border-b border-border-subtle hover:bg-surface-3 transition-colors cursor-pointer"
             >
               <td className="py-3 px-4">
                 <div className="flex items-center gap-3">
@@ -88,13 +90,13 @@ export default function WorkerTable({ workers, onDelete, onManageBindings, onDep
                       />
                     </svg>
                   </div>
-                  <span className="text-white font-medium">{worker.name}</span>
+                  <span className="text-text-main font-medium">{worker.name}</span>
                 </div>
               </td>
-              <td className="py-3 px-4 text-sm text-gray-400">
+              <td className="py-3 px-4 text-sm text-text-muted">
                 {formatDate(worker.created_on)}
               </td>
-              <td className="py-3 px-4 text-sm text-gray-400">
+              <td className="py-3 px-4 text-sm text-text-muted">
                 {formatDate(worker.updated_on)}
               </td>
               <td className="py-3 px-4">
@@ -103,22 +105,22 @@ export default function WorkerTable({ workers, onDelete, onManageBindings, onDep
                     {worker.routes.slice(0, 2).map((route, idx) => (
                       <span
                         key={idx}
-                        className="px-2 py-0.5 text-xs rounded bg-cf-dark-700 text-gray-300 font-mono"
+                        className="px-2 py-0.5 text-xs rounded bg-surface-3 text-text-main font-mono"
                       >
                         {route.pattern}
                       </span>
                     ))}
                     {worker.routes.length > 2 && (
-                      <span className="px-2 py-0.5 text-xs rounded bg-cf-dark-700 text-gray-400">
+                      <span className="px-2 py-0.5 text-xs rounded bg-surface-3 text-text-muted">
                         +{worker.routes.length - 2}
                       </span>
                     )}
                   </div>
                 ) : (
-                  <span className="text-sm text-gray-500">-</span>
+                  <span className="text-sm text-text-faint">-</span>
                 )}
               </td>
-              <td className="py-3 px-4 text-right">
+              <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-end gap-2">
                   <Button
                     variant="secondary"

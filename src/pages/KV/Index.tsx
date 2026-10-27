@@ -14,7 +14,6 @@ interface KvNamespace {
 
 interface KvKey {
   name: string
-  size: string
   expiration?: number
   metadata?: Record<string, string>
 }
@@ -37,6 +36,7 @@ export default function KV() {
   // Key editor state
   const [showKeyModal, setShowKeyModal] = useState(false)
   const [editingKey, setEditingKey] = useState<KvKey | null>(null)
+  const [keyName, setKeyName] = useState('')
   const [keyValue, setKeyValue] = useState('')
   const [keyExpiration, setKeyExpiration] = useState('')
   const [keyError, setKeyError] = useState('')
@@ -129,9 +129,13 @@ export default function KV() {
   const handleSaveKey = async () => {
     if (!selectedNamespace) return
     setKeyError('')
+    const trimmedName = keyName.trim()
+    if (!trimmedName) {
+      setKeyError('Key name is required')
+      return
+    }
     setKeySaving(true)
     try {
-      const keyName = editingKey?.name || ''
       const body: Record<string, unknown> = { value: keyValue }
       if (keyExpiration) {
         const ttl = parseInt(keyExpiration, 10)
@@ -140,7 +144,7 @@ export default function KV() {
         }
       }
       const response = await fetch(
-        `/api/accounts/${accountId}/kv/${selectedNamespace.id}/keys/${encodeURIComponent(keyName)}`,
+        `/api/accounts/${accountId}/kv/${selectedNamespace.id}/keys/${encodeURIComponent(trimmedName)}`,
         { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
       )
       const data = await response.json()
@@ -220,6 +224,7 @@ export default function KV() {
               <Button
                 onClick={() => {
                   setEditingKey(null)
+                  setKeyName('')
                   setKeyValue('')
                   setKeyExpiration('')
                   setKeyError('')
@@ -254,7 +259,7 @@ export default function KV() {
                     <thead>
                       <tr className="border-b border-cf-dark-700">
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Key</th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Size</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Metadata</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Expiration</th>
                         <th className="text-right py-3 px-4 text-sm font-medium text-gray-400">Actions</th>
                       </tr>
@@ -265,7 +270,11 @@ export default function KV() {
                           <td className="py-3 px-4">
                             <span className="text-white font-mono text-sm">{key.name}</span>
                           </td>
-                          <td className="py-3 px-4 text-sm text-gray-400">{key.size}</td>
+                          <td className="py-3 px-4 text-sm text-gray-400">
+                            {key.metadata && Object.keys(key.metadata).length > 0
+                              ? <span className="font-mono text-xs">{JSON.stringify(key.metadata)}</span>
+                              : '—'}
+                          </td>
                           <td className="py-3 px-4 text-sm text-gray-400">
                             {key.expiration ? new Date(key.expiration * 1000).toLocaleDateString() : '—'}
                           </td>
@@ -278,6 +287,7 @@ export default function KV() {
                                 variant="secondary"
                                 onClick={() => {
                                   setEditingKey(key)
+                                  setKeyName(key.name)
                                   setKeyValue('')
                                   setKeyExpiration('')
                                   setKeyError('')
@@ -440,14 +450,14 @@ export default function KV() {
                 </button>
               </div>
               <div className="space-y-4">
-                {!editingKey && (
-                  <Input
-                    id="key-name"
-                    label="Key Name"
-                    placeholder="my-key"
-                    disabled
-                  />
-                )}
+                <Input
+                  id="key-name"
+                  label="Key Name"
+                  placeholder="my-key"
+                  value={keyName}
+                  onChange={(e) => setKeyName(e.target.value)}
+                  disabled={!!editingKey}
+                />
                 <div className="space-y-1">
                   <label className="block text-sm font-medium text-gray-300">Value</label>
                   <textarea
@@ -502,7 +512,8 @@ export default function KV() {
                 <Button variant="secondary" onClick={() => setViewingKey(null)} className="flex-1">Close</Button>
                 <Button
                   onClick={() => {
-                    setEditingKey({ name: viewingKey.name, size: '' })
+                    setEditingKey({ name: viewingKey.name })
+                    setKeyName(viewingKey.name)
                     setKeyValue(viewingKey.value)
                     setKeyExpiration('')
                     setKeyError('')

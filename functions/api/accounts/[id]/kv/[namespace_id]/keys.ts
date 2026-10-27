@@ -14,14 +14,12 @@ interface Env {
 
 export interface KvKey {
   name: string;
-  size: string;
   expiration?: number;
-  metadata?: Record<string, string>;
+  metadata?: unknown;
 }
 
-export interface KvKeysList {
-  keys: KvKey[];
-  list_complete: boolean;
+interface KvListResultInfo {
+  count?: number;
   cursor?: string;
 }
 
@@ -42,14 +40,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const limit = url.searchParams.get("limit") || "1000";
   const cursor = url.searchParams.get("cursor") || undefined;
 
-  let path = `/accounts/${accountId}/storage/kv/namespaces/${namespaceId}/keys?limit=${limit}`;
-  if (cursor) {
-    path += `&cursor=${cursor}`;
-  }
+  const path =
+    `/accounts/${accountId}/storage/kv/namespaces/${namespaceId}/keys` +
+    `?limit=${encodeURIComponent(limit)}` +
+    (cursor ? `&cursor=${encodeURIComponent(cursor)}` : "");
 
   const response = await cloudflareFetch(token, path);
 
-  const data = await parseCfResponse<KvKeysList>(response);
+  const data = await parseCfResponse<KvKey[]>(response);
 
   if (!data.success) {
     const errorMessage =
@@ -60,8 +58,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     );
   }
 
+  // Cloudflare returns { result: Key[], result_info: { count, cursor } }.
+  // Normalize to { keys, cursor, list_complete } so the frontend can page.
+  const anyData = data as unknown as { result_info?: KvListResultInfo };
+  const resultInfo = anyData.result_info ?? {};
   return new Response(
-    JSON.stringify(data.result),
+    JSON.stringify({
+      keys: data.result ?? [],
+      cursor: resultInfo.cursor,
+      list_complete: !resultInfo.cursor,
+    }),
     { status: 200, headers: { "Content-Type": "application/json" } }
   );
 };

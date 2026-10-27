@@ -33,7 +33,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   const response = await cloudflareFetch(
     token,
-    `/accounts/${accountId}/storage/kv/namespaces/${namespaceId}/values/${key}`
+    `/accounts/${accountId}/storage/kv/namespaces/${namespaceId}/values/${encodeURIComponent(key)}`
   );
 
   if (response.status === 404) {
@@ -81,7 +81,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     value: string;
     expiration?: number;
     expiration_ttl?: number;
-    metadata?: Record<string, string>;
+    metadata?: Record<string, unknown>;
   }>();
 
   if (body.value === undefined) {
@@ -91,29 +91,40 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     );
   }
 
-  // Cloudflare KV PUT uses form data
-  const formData = new FormData();
-  formData.append("value", body.value);
+  const hasMetadata = body.metadata !== undefined;
+  const hasExpiration = body.expiration !== undefined;
+  const hasTtl = body.expiration_ttl !== undefined;
 
-  if (body.expiration) {
-    formData.append("expiration", body.expiration.toString());
-  }
-  if (body.expiration_ttl) {
-    formData.append("expiration_ttl", body.expiration_ttl.toString());
-  }
-  if (body.metadata) {
-    formData.append("metadata", JSON.stringify(body.metadata));
+  let fetchBody: BodyInit;
+  const extraHeaders: Record<string, string> = {};
+
+  if (hasMetadata || hasExpiration || hasTtl) {
+    // KV PUT uses multipart/form-data when metadata or expiration is set.
+    const formData = new FormData();
+    formData.append("value", body.value);
+    if (hasExpiration) {
+      formData.append("expiration", String(body.expiration));
+    }
+    if (hasTtl) {
+      formData.append("expiration_ttl", String(body.expiration_ttl));
+    }
+    if (hasMetadata) {
+      formData.append("metadata", JSON.stringify(body.metadata));
+    }
+    fetchBody = formData;
+    // Do NOT set Content-Type — fetch must generate the multipart boundary.
+  } else {
+    // Plain value write: body is the raw value, no Content-Type header.
+    fetchBody = body.value;
   }
 
   const response = await cloudflareFetch(
     token,
-    `/accounts/${accountId}/storage/kv/namespaces/${namespaceId}/values/${key}`,
+    `/accounts/${accountId}/storage/kv/namespaces/${namespaceId}/values/${encodeURIComponent(key)}`,
     {
       method: "PUT",
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-      body: formData,
+      headers: extraHeaders,
+      body: fetchBody,
     }
   );
 
@@ -151,7 +162,7 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
 
   const response = await cloudflareFetch(
     token,
-    `/accounts/${accountId}/storage/kv/namespaces/${namespaceId}/values/${key}`,
+    `/accounts/${accountId}/storage/kv/namespaces/${namespaceId}/values/${encodeURIComponent(key)}`,
     {
       method: "DELETE",
     }

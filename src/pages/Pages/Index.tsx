@@ -5,6 +5,10 @@ import ProjectTable from '../../components/pages/ProjectTable'
 import CreateProjectModal from '../../components/pages/CreateProjectModal'
 import DeployModal from '../../components/pages/DeployModal'
 import Button from '../../components/ui/Button'
+import ErrorBanner from '../../components/ui/ErrorBanner'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import { useToast } from '../../hooks/useToast'
+import { api, apiDelete, apiGet, apiPost } from '../../lib/api'
 
 interface PagesProject {
   id: string
@@ -32,8 +36,14 @@ interface ResultInfo {
   total_count?: number
 }
 
+interface ProjectsResponse {
+  projects?: PagesProject[]
+  result_info?: ResultInfo | null
+}
+
 export default function Pages() {
   const { accountId } = useParams()
+  const { addToast } = useToast()
   const [projects, setProjects] = useState<PagesProject[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -42,6 +52,7 @@ export default function Pages() {
   const [showDeployModal, setShowDeployModal] = useState(false)
   const [deployProjectName, setDeployProjectName] = useState<string | null>(null)
   const [deletingName, setDeletingName] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [deployingName, setDeployingName] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [resultInfo, setResultInfo] = useState<ResultInfo | null>(null)
@@ -52,21 +63,16 @@ export default function Pages() {
     if (append) setLoadingMore(true)
     else setLoading(true)
     try {
-      const response = await fetch(
+      const data = await apiGet<ProjectsResponse>(
         `/api/accounts/${accountId}/pages?page=${nextPage}&per_page=${PER_PAGE}`
       )
-      const data = await response.json()
-
-      if (data.error) {
-        throw new Error(data.error)
-      }
 
       const incoming: PagesProject[] = data.projects || []
       setProjects((prev) => (append ? [...prev, ...incoming] : incoming))
       setResultInfo(data.result_info || null)
       setPage(nextPage)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load Pages projects')
+      setError(err instanceof Error ? err.message : '加载 Pages 项目列表失败')
     } finally {
       setLoading(false)
       setLoadingMore(false)
@@ -82,43 +88,36 @@ export default function Pages() {
     : false
 
   const handleCreateProject = async (name: string, productionBranch?: string) => {
-    const response = await fetch(`/api/accounts/${accountId}/pages`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, production_branch: productionBranch }),
-    })
+    // 创建失败由 CreateProjectModal 内联展示，故 silent
+    const data = await apiPost<{ project?: PagesProject }>(
+      `/api/accounts/${accountId}/pages`,
+      { name, production_branch: productionBranch },
+      { silent: true }
+    )
 
-    const data = await response.json()
-
-    if (data.error) {
-      throw new Error(data.error)
+    const project = data.project
+    if (project) {
+      setProjects((prev) => [...prev, project])
     }
-
-    if (data.project) {
-      setProjects((prev) => [...prev, data.project])
-    }
+    addToast('Pages 项目已创建', 'success')
   }
 
-  const handleDeleteProject = async (name: string) => {
-    if (!confirm(`Are you sure you want to delete Pages project "${name}"?`)) {
-      return
-    }
+  const handleDeleteProject = (name: string) => {
+    setDeleteTarget(name)
+  }
+
+  const performDeleteProject = async () => {
+    const name = deleteTarget
+    if (!name) return
 
     setDeletingName(name)
     try {
-      const response = await fetch(`/api/accounts/${accountId}/pages/${name}`, {
-        method: 'DELETE',
-      })
-
-      const data = await response.json()
-
-      if (data.error) {
-        throw new Error(data.error)
-      }
-
+      await apiDelete(`/api/accounts/${accountId}/pages/${name}`)
       setProjects((prev) => prev.filter((p) => p.name !== name))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete Pages project')
+      addToast('Pages 项目已删除', 'success')
+      setDeleteTarget(null)
+    } catch {
+      // 错误已由 api 自动 toast，此处仅收尾；弹窗保持打开以便重试
     } finally {
       setDeletingName(null)
     }
@@ -130,18 +129,13 @@ export default function Pages() {
       const formData = new FormData()
       formData.append('files', file)
 
-      const response = await fetch(`/api/accounts/${accountId}/pages/${name}/deploy`, {
+      // 部署失败由 DeployModal 内联展示，故 silent
+      await api(`/api/accounts/${accountId}/pages/${name}/deploy`, {
         method: 'POST',
         body: formData,
+        silent: true,
       })
-
-      const data = await response.json()
-
-      if (data.error) {
-        throw new Error(data.error)
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to deploy Pages project')
+      addToast('部署成功', 'success')
     } finally {
       setDeployingName(null)
     }
@@ -173,17 +167,7 @@ export default function Pages() {
           </Button>
         </div>
 
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6">
-            <p className="text-red-400">{error}</p>
-            <button
-              onClick={() => setError('')}
-              className="text-sm text-red-400 hover:text-red-300 mt-2"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
+        <ErrorBanner error={error} onDismiss={() => setError('')} />
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
@@ -231,6 +215,23 @@ export default function Pages() {
           setDeployProjectName(null)
         }}
         onDeploy={handleDeployProject}
+      />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="删除 Pages 项目"
+        message={
+          <>
+            确定要删除 Pages 项目 <span className="font-mono text-cf-orange">{deleteTarget}</span> 吗？
+            该操作不可恢复。
+          </>
+        }
+        confirmText="删除"
+        danger
+        requireName={deleteTarget ?? undefined}
+        loading={!!deleteTarget && deletingName === deleteTarget}
+        onConfirm={performDeleteProject}
+        onClose={() => setDeleteTarget(null)}
       />
     </Layout>
   )

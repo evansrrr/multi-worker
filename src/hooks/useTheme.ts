@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { apiGet, apiPut } from '../lib/api'
 
 type AppearanceMode = 'light' | 'dark' | 'system'
 
@@ -17,8 +18,7 @@ export function useTheme() {
 
   const loadAppearance = useCallback(async () => {
     try {
-      const response = await fetch('/api/settings/appearance')
-      const data = await response.json()
+      const data = await apiGet<{ mode?: AppearanceMode }>('/api/settings/appearance')
       if (data.mode) {
         setAppearance(data.mode)
         applyTheme(data.mode)
@@ -33,15 +33,9 @@ export function useTheme() {
     applyTheme(mode)
 
     try {
-      const response = await fetch('/api/settings/appearance', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode }),
-      })
-      const data = await response.json()
-      if (data.error) throw new Error(data.error)
+      await apiPut('/api/settings/appearance', { mode })
     } catch {
-      // preference save failed, but local state is applied
+      // 保存失败：本地已生效；api 对非 GET 失败自动 toast 提示
     }
   }, [])
 

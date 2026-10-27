@@ -1,9 +1,11 @@
 export interface Account {
   id: string
   name: string
-  token_encrypted: string
-  token_iv: string
-  created_at: string
+  type: string
+  email: string
+  /** Base64 ciphertext of the Cloudflare API token (matches backend kv.ts). */
+  encryptedToken: string
+  iv: string
 }
 
 export interface AccountMetadata {
@@ -21,8 +23,12 @@ export interface Worker {
   updated_on?: string
   modified_on?: string
   deployed_on?: string
-  routes: WorkerRoute[]
-  bindings: WorkerBinding[]
+  logpush?: boolean
+  subdomain?: { enabled: boolean; previews_enabled: boolean }
+  tags?: string[]
+  /** Only present for script-style listings — the Workers entity API omits these. */
+  routes?: WorkerRoute[]
+  bindings?: WorkerBinding[]
 }
 
 export interface WorkerRoute {
@@ -62,7 +68,7 @@ export interface KVNamespace {
 
 export interface KVKey {
   name: string
-  value: string
+  /** Unix seconds; omitted for keys that never expire (REST list shape). */
   expiration?: number
   metadata?: Record<string, unknown>
 }

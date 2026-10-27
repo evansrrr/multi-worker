@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Button from '../ui/Button'
 import Input from '../ui/Input'
+import ErrorBanner from '../ui/ErrorBanner'
 
 interface CreateWorkerModalProps {
   open: boolean
@@ -25,7 +26,7 @@ export default function CreateWorkerModal({ open, onClose, onCreate }: CreateWor
       setScript('')
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create worker')
+      setError(err instanceof Error ? err.message : '创建 Worker 失败')
     } finally {
       setLoading(false)
     }
@@ -93,7 +94,7 @@ export default function CreateWorkerModal({ open, onClose, onCreate }: CreateWor
                 focus:outline-none focus:ring-2 focus:ring-cf-orange focus:border-transparent
                 min-h-[150px] resize-y"
               placeholder={`export default {
-  async fetch(request) {
+  fetch: async (request) => {
     return new Response("Hello World!");
   },
 };`}
@@ -106,9 +107,7 @@ export default function CreateWorkerModal({ open, onClose, onCreate }: CreateWor
             </p>
           </div>
 
-          {error && (
-            <p className="text-sm text-red-500">{error}</p>
-          )}
+          {error && <ErrorBanner error={error} onDismiss={() => setError('')} />}
 
           <div className="flex gap-3 pt-2">
             <Button

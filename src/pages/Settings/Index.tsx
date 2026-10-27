@@ -1,8 +1,13 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Layout from '../../components/layout/Layout'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
+import ErrorBanner from '../../components/ui/ErrorBanner'
+import { apiPut } from '../../lib/api'
+import { useAuth } from '../../hooks/useAuth'
 import { useTheme } from '../../hooks/useTheme'
+import { useToast } from '../../hooks/useToast'
 
 type AppearanceMode = 'light' | 'dark' | 'system'
 
@@ -82,13 +87,14 @@ function PasswordSection() {
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
+  const { addToast } = useToast()
+  const { logout } = useAuth()
+  const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    setSuccess('')
 
     if (newPassword !== confirmPassword) {
       setError('Passwords do not match')
@@ -107,18 +113,22 @@ function PasswordSection() {
 
     setLoading(true)
     try {
-      const response = await fetch('/api/settings/password', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword, newPassword }),
-      })
-      const data = await response.json()
-      if (data.error) throw new Error(data.error)
+      await apiPut(
+        '/api/settings/password',
+        { currentPassword, newPassword },
+        // 表单需要内联错误（含客户端校验），关闭自动 toast 保证单通道
+        { silent: true }
+      )
 
-      setSuccess('Password updated successfully')
-      setCurrentPassword('')
-      setNewPassword('')
-      setConfirmPassword('')
+      // 后端已递增 session_epoch，当前会话同时失效，必须重新登录
+      addToast('密码已修改，请重新登录', 'success')
+      try {
+        // 清理客户端登录态，否则 PublicRoute 会把未登出的客户端弹回 /dashboard
+        await logout()
+      } catch {
+        // 会话已在服务端失效，忽略
+      }
+      navigate('/login')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update password')
     } finally {
@@ -160,17 +170,7 @@ function PasswordSection() {
           onChange={(e) => setConfirmPassword(e.target.value)}
         />
 
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-            <p className="text-sm text-red-400">{error}</p>
-          </div>
-        )}
-
-        {success && (
-          <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
-            <p className="text-sm text-green-400">{success}</p>
-          </div>
-        )}
+        <ErrorBanner error={error} onDismiss={() => setError('')} />
 
         <Button
           type="submit"

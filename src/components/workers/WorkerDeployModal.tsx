@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import Button from '../ui/Button'
+import ErrorBanner from '../ui/ErrorBanner'
 
 interface WorkerDeployModalProps {
   open: boolean
@@ -59,7 +60,7 @@ export default function WorkerDeployModal({ open, workerName, onClose, onDeploy 
       await onDeploy(workerName, files)
       setStep('complete')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to deploy worker')
+      setError(err instanceof Error ? err.message : '部署 Worker 失败')
     } finally {
       setLoading(false)
     }
@@ -124,11 +125,7 @@ export default function WorkerDeployModal({ open, workerName, onClose, onDeploy 
           ))}
         </div>
 
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-4">
-            <p className="text-red-400">{error}</p>
-          </div>
-        )}
+        {error && <ErrorBanner error={error} onDismiss={() => setError('')} />}
 
         <div className="flex-1 overflow-y-auto">
           {/* Step 1: Upload */}

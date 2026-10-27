@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import Button from '../ui/Button'
+import ErrorBanner from '../ui/ErrorBanner'
 
 interface DeployModalProps {
   open: boolean
@@ -26,7 +27,7 @@ export default function DeployModal({ open, projectName, onClose, onDeploy }: De
       await onDeploy(projectName, selectedFile)
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to deploy')
+      setError(err instanceof Error ? err.message : '部署失败')
     } finally {
       setLoading(false)
     }
@@ -161,9 +162,7 @@ export default function DeployModal({ open, projectName, onClose, onDeploy }: De
             complete.
           </p>
 
-          {error && (
-            <p className="text-sm text-red-500">{error}</p>
-          )}
+          {error && <ErrorBanner error={error} onDismiss={() => setError('')} />}
 
           <div className="flex gap-3 pt-2">
             <Button

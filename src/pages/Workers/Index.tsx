@@ -6,6 +6,10 @@ import CreateWorkerModal from '../../components/workers/CreateWorkerModal'
 import BindingsEditor from '../../components/workers/BindingsEditor'
 import WorkerDeployModal from '../../components/workers/WorkerDeployModal'
 import Button from '../../components/ui/Button'
+import ErrorBanner from '../../components/ui/ErrorBanner'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import { useToast } from '../../hooks/useToast'
+import { api, apiDelete, apiGet, apiPost } from '../../lib/api'
 
 interface Worker {
   id: string
@@ -28,14 +32,21 @@ interface ResultInfo {
   total_count?: number
 }
 
+interface WorkersResponse {
+  workers?: Worker[]
+  result_info?: ResultInfo | null
+}
+
 export default function Workers() {
   const { accountId } = useParams()
+  const { addToast } = useToast()
   const [workers, setWorkers] = useState<Worker[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState('')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [deletingName, setDeletingName] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [bindingsWorkerName, setBindingsWorkerName] = useState<string | null>(null)
   const [deployWorkerName, setDeployWorkerName] = useState<string | null>(null)
   const [page, setPage] = useState(1)
@@ -47,21 +58,16 @@ export default function Workers() {
     if (append) setLoadingMore(true)
     else setLoading(true)
     try {
-      const response = await fetch(
+      const data = await apiGet<WorkersResponse>(
         `/api/accounts/${accountId}/workers?page=${nextPage}&per_page=${PER_PAGE}`
       )
-      const data = await response.json()
-
-      if (data.error) {
-        throw new Error(data.error)
-      }
 
       const incoming: Worker[] = data.workers || []
       setWorkers((prev) => (append ? [...prev, ...incoming] : incoming))
       setResultInfo(data.result_info || null)
       setPage(nextPage)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load workers')
+      setError(err instanceof Error ? err.message : '加载 Worker 列表失败')
     } finally {
       setLoading(false)
       setLoadingMore(false)
@@ -77,43 +83,36 @@ export default function Workers() {
     : false
 
   const handleCreateWorker = async (name: string, script?: string) => {
-    const response = await fetch(`/api/accounts/${accountId}/workers`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, script }),
-    })
+    // 创建失败由 CreateWorkerModal 内联展示，故 silent
+    const data = await apiPost<{ worker?: Worker }>(
+      `/api/accounts/${accountId}/workers`,
+      { name, script },
+      { silent: true }
+    )
 
-    const data = await response.json()
-
-    if (data.error) {
-      throw new Error(data.error)
+    const worker = data.worker
+    if (worker) {
+      setWorkers((prev) => [...prev, worker])
     }
-
-    if (data.worker) {
-      setWorkers((prev) => [...prev, data.worker])
-    }
+    addToast('Worker 已创建', 'success')
   }
 
-  const handleDeleteWorker = async (name: string) => {
-    if (!confirm(`Are you sure you want to delete worker "${name}"?`)) {
-      return
-    }
+  const handleDeleteWorker = (name: string) => {
+    setDeleteTarget(name)
+  }
+
+  const performDeleteWorker = async () => {
+    const name = deleteTarget
+    if (!name) return
 
     setDeletingName(name)
     try {
-      const response = await fetch(`/api/accounts/${accountId}/workers/${name}`, {
-        method: 'DELETE',
-      })
-
-      const data = await response.json()
-
-      if (data.error) {
-        throw new Error(data.error)
-      }
-
+      await apiDelete(`/api/accounts/${accountId}/workers/${name}`)
       setWorkers((prev) => prev.filter((w) => w.name !== name))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete worker')
+      addToast('Worker 已删除', 'success')
+      setDeleteTarget(null)
+    } catch {
+      // 错误已由 api 自动 toast，此处仅收尾；弹窗保持打开以便重试
     } finally {
       setDeletingName(null)
     }
@@ -125,16 +124,13 @@ export default function Workers() {
       formData.append('files', file)
     })
 
-    const response = await fetch(`/api/accounts/${accountId}/workers/${name}/deploy`, {
+    // 部署失败由 WorkerDeployModal 内联展示，故 silent
+    await api(`/api/accounts/${accountId}/workers/${name}/deploy`, {
       method: 'POST',
       body: formData,
+      silent: true,
     })
-
-    const data = await response.json()
-
-    if (data.error) {
-      throw new Error(data.error)
-    }
+    addToast('部署成功', 'success')
   }
 
   return (
@@ -163,17 +159,7 @@ export default function Workers() {
           </Button>
         </div>
 
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6">
-            <p className="text-red-400">{error}</p>
-            <button
-              onClick={() => setError('')}
-              className="text-sm text-red-400 hover:text-red-300 mt-2"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
+        <ErrorBanner error={error} onDismiss={() => setError('')} />
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
@@ -226,6 +212,23 @@ export default function Workers() {
           onDeploy={handleDeployWorker}
         />
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="删除 Worker"
+        message={
+          <>
+            确定要删除 Worker <span className="font-mono text-cf-orange">{deleteTarget}</span> 吗？
+            该操作不可恢复。
+          </>
+        }
+        confirmText="删除"
+        danger
+        requireName={deleteTarget ?? undefined}
+        loading={!!deleteTarget && deletingName === deleteTarget}
+        onConfirm={performDeleteWorker}
+        onClose={() => setDeleteTarget(null)}
+      />
     </Layout>
   )
 }

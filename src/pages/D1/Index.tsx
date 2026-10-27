@@ -3,6 +3,10 @@ import { useParams } from 'react-router-dom'
 import Layout from '../../components/layout/Layout'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
+import ErrorBanner from '../../components/ui/ErrorBanner'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import { apiGet, apiPost, apiDelete } from '../../lib/api'
+import { useToast } from '../../hooks/useToast'
 
 interface D1Database {
   uuid: string
@@ -48,15 +52,16 @@ export default function D1() {
   const [queryLoading, setQueryLoading] = useState(false)
   const [queryError, setQueryError] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [deleteTarget, setDeleteTarget] = useState<D1Database | null>(null)
+  const [confirmLoading, setConfirmLoading] = useState(false)
+  const { addToast } = useToast()
 
   const fetchDatabases = useCallback(async () => {
     try {
-      const response = await fetch(`/api/accounts/${accountId}/d1`)
-      const data = await response.json()
-      if (data.error) throw new Error(data.error)
+      const data = await apiGet<{ databases?: D1Database[] }>(`/api/accounts/${accountId}/d1`)
       setDatabases(data.databases || [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load D1 databases')
+      setError(err instanceof Error ? err.message : '加载 D1 数据库失败')
     } finally {
       setLoading(false)
     }
@@ -70,12 +75,12 @@ export default function D1() {
     async (databaseId: string) => {
       setTablesLoading(true)
       try {
-        const response = await fetch(`/api/accounts/${accountId}/d1/${databaseId}/tables`)
-        const data = await response.json()
-        if (data.error) throw new Error(data.error)
+        const data = await apiGet<{ tables?: D1Table[] }>(
+          `/api/accounts/${accountId}/d1/${databaseId}/tables`
+        )
         setTables(data.tables || [])
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load tables')
+        setError(err instanceof Error ? err.message : '加载数据表失败')
       } finally {
         setTablesLoading(false)
       }
@@ -90,27 +95,25 @@ export default function D1() {
   }, [selectedDb, fetchTables])
 
   const handleCreateDatabase = async (name: string) => {
-    const response = await fetch(`/api/accounts/${accountId}/d1`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
-    })
-    const data = await response.json()
-    if (data.error) throw new Error(data.error)
+    // silent: 创建弹窗内联展示表单错误
+    const data = await apiPost<{ database?: D1Database }>(
+      `/api/accounts/${accountId}/d1`,
+      { name },
+      { silent: true }
+    )
     if (data.database) {
-      setDatabases((prev) => [...prev, data.database])
+      const created = data.database
+      setDatabases((prev) => [...prev, created])
     }
+    addToast('数据库创建成功', 'success')
   }
 
   const handleDeleteDatabase = async (db: D1Database) => {
-    if (!confirm(`Delete D1 database "${db.name}"? This cannot be undone.`)) return
     setDeletingId(db.uuid)
+    setConfirmLoading(true)
     try {
-      const response = await fetch(`/api/accounts/${accountId}/d1/${db.uuid}`, {
-        method: 'DELETE',
-      })
-      const data = await response.json()
-      if (data.error) throw new Error(data.error)
+      await apiDelete(`/api/accounts/${accountId}/d1/${db.uuid}`)
+      addToast('删除成功', 'success')
       setDatabases((prev) => prev.filter((d) => d.uuid !== db.uuid))
       if (selectedDb?.uuid === db.uuid) {
         setSelectedDb(null)
@@ -118,10 +121,12 @@ export default function D1() {
         setQueryResults(null)
         setSqlQuery('')
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete database')
+      setDeleteTarget(null)
+    } catch {
+      // api 已自动弹出错误 toast，此处仅收尾
     } finally {
       setDeletingId(null)
+      setConfirmLoading(false)
     }
   }
 
@@ -131,13 +136,12 @@ export default function D1() {
     setQueryError('')
     setQueryResults(null)
     try {
-      const response = await fetch(`/api/accounts/${accountId}/d1/${selectedDb.uuid}/query`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sql: sqlQuery.trim() }),
-      })
-      const data = await response.json()
-      if (data.error) throw new Error(data.error)
+      // silent: SQL 控制台内联 queryError 展示
+      const data = await apiPost<{ result?: D1QueryResult[] }>(
+        `/api/accounts/${accountId}/d1/${selectedDb.uuid}/query`,
+        { sql: sqlQuery.trim() },
+        { silent: true }
+      )
       const results = data.result?.[0] || { success: true, results: [] }
       setQueryResults(results)
       // Refresh tables list after schema changes
@@ -145,7 +149,7 @@ export default function D1() {
         fetchTables(selectedDb.uuid)
       }
     } catch (err) {
-      setQueryError(err instanceof Error ? err.message : 'Failed to execute query')
+      setQueryError(err instanceof Error ? err.message : '执行查询失败')
     } finally {
       setQueryLoading(false)
     }
@@ -191,12 +195,7 @@ export default function D1() {
               </div>
             </div>
 
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6">
-                <p className="text-red-400">{error}</p>
-                <button onClick={() => setError('')} className="text-sm text-red-400 hover:text-red-300 mt-2">Dismiss</button>
-              </div>
-            )}
+            <ErrorBanner error={error} onDismiss={() => setError('')} />
 
             {/* Tables section */}
             <div className="bg-cf-dark-800 rounded-xl shadow-lg border border-cf-dark-700 mb-6">
@@ -279,8 +278,8 @@ export default function D1() {
               </div>
 
               {queryError && (
-                <div className="mx-4 mb-4 bg-red-500/10 border border-red-500/30 rounded-lg p-4">
-                  <p className="text-red-400 text-sm">{queryError}</p>
+                <div className="mx-4">
+                  <ErrorBanner error={queryError} onDismiss={() => setQueryError('')} />
                 </div>
               )}
 
@@ -353,12 +352,7 @@ export default function D1() {
               </Button>
             </div>
 
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6">
-                <p className="text-red-400">{error}</p>
-                <button onClick={() => setError('')} className="text-sm text-red-400 hover:text-red-300 mt-2">Dismiss</button>
-              </div>
-            )}
+            <ErrorBanner error={error} onDismiss={() => setError('')} />
 
             {loading ? (
               <div className="flex items-center justify-center py-20">
@@ -411,7 +405,7 @@ export default function D1() {
                                 </Button>
                                 <Button
                                   variant="danger"
-                                  onClick={() => handleDeleteDatabase(db)}
+                                  onClick={() => setDeleteTarget(db)}
                                   loading={deletingId === db.uuid}
                                   className="text-sm px-3 py-1"
                                 >
@@ -437,6 +431,21 @@ export default function D1() {
             onCreate={handleCreateDatabase}
           />
         )}
+
+        {/* Delete Confirmation Dialog */}
+        <ConfirmDialog
+          open={deleteTarget !== null}
+          title="删除数据库"
+          message={`确定要删除 D1 数据库 "${deleteTarget?.name}" 吗？此操作不可撤销。`}
+          confirmText="删除"
+          danger
+          requireName={deleteTarget?.name}
+          loading={confirmLoading}
+          onConfirm={() => {
+            if (deleteTarget) handleDeleteDatabase(deleteTarget)
+          }}
+          onClose={() => setDeleteTarget(null)}
+        />
       </div>
     </Layout>
   )

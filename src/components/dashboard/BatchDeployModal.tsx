@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react'
 import Button from '../ui/Button'
+import ErrorBanner from '../ui/ErrorBanner'
 import { ResourceItem } from '../../types'
 
 interface BatchDeployModalProps {
@@ -193,11 +194,7 @@ export default function BatchDeployModal({ open, targets, onClose, onDeploy }: B
         </div>
 
         {/* Error message */}
-        {error && (
-          <div className="mb-4 bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-            <p className="text-sm text-red-400">{error}</p>
-          </div>
-        )}
+        <ErrorBanner error={error} onDismiss={() => setError('')} />
 
         {/* Action buttons */}
         <div className="flex gap-3">

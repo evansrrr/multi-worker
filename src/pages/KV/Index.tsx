@@ -3,6 +3,10 @@ import { useParams } from 'react-router-dom'
 import Layout from '../../components/layout/Layout'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
+import ErrorBanner from '../../components/ui/ErrorBanner'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import { apiGet, apiPost, apiPut, apiDelete } from '../../lib/api'
+import { useToast } from '../../hooks/useToast'
 
 interface KvNamespace {
   id: string
@@ -43,15 +47,20 @@ export default function KV() {
   const [keySaving, setKeySaving] = useState(false)
   const [deletingKeyName, setDeletingKeyName] = useState<string | null>(null)
   const [viewingKey, setViewingKey] = useState<{ name: string; value: string } | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<
+    | { kind: 'namespace'; ns: KvNamespace }
+    | { kind: 'key'; name: string }
+    | null
+  >(null)
+  const [confirmLoading, setConfirmLoading] = useState(false)
+  const { addToast } = useToast()
 
   const fetchNamespaces = useCallback(async () => {
     try {
-      const response = await fetch(`/api/accounts/${accountId}/kv`)
-      const data = await response.json()
-      if (data.error) throw new Error(data.error)
+      const data = await apiGet<{ namespaces?: KvNamespace[] }>(`/api/accounts/${accountId}/kv`)
       setNamespaces(data.namespaces || [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load KV namespaces')
+      setError(err instanceof Error ? err.message : '加载 KV 命名空间失败')
     } finally {
       setLoading(false)
     }
@@ -67,9 +76,11 @@ export default function KV() {
       try {
         let url = `/api/accounts/${accountId}/kv/${namespaceId}/keys?limit=100`
         if (cursor) url += `&cursor=${cursor}`
-        const response = await fetch(url)
-        const data = await response.json()
-        if (data.error) throw new Error(data.error)
+        const data = await apiGet<{
+          keys?: KvKey[]
+          cursor?: string
+          list_complete?: boolean
+        }>(url)
         if (cursor) {
           setKeys((prev) => [...prev, ...(data.keys || [])])
         } else {
@@ -78,7 +89,7 @@ export default function KV() {
         setKeysComplete(data.list_complete ?? true)
         setKeysCursor(data.cursor || null)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load keys')
+        setError(err instanceof Error ? err.message : '加载键列表失败')
       } finally {
         setKeysLoading(false)
       }
@@ -93,36 +104,36 @@ export default function KV() {
   }, [selectedNamespace, fetchKeys])
 
   const handleCreateNamespace = async (title: string) => {
-    const response = await fetch(`/api/accounts/${accountId}/kv`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title }),
-    })
-    const data = await response.json()
-    if (data.error) throw new Error(data.error)
+    // silent: 创建弹窗内联展示表单错误
+    const data = await apiPost<{ namespace?: KvNamespace }>(
+      `/api/accounts/${accountId}/kv`,
+      { title },
+      { silent: true }
+    )
     if (data.namespace) {
-      setNamespaces((prev) => [...prev, data.namespace])
+      const created = data.namespace
+      setNamespaces((prev) => [...prev, created])
     }
+    addToast('命名空间创建成功', 'success')
   }
 
   const handleDeleteNamespace = async (ns: KvNamespace) => {
-    if (!confirm(`Delete KV namespace "${ns.title}"? This cannot be undone.`)) return
     setDeletingId(ns.id)
+    setConfirmLoading(true)
     try {
-      const response = await fetch(`/api/accounts/${accountId}/kv/${ns.id}`, {
-        method: 'DELETE',
-      })
-      const data = await response.json()
-      if (data.error) throw new Error(data.error)
+      await apiDelete(`/api/accounts/${accountId}/kv/${ns.id}`)
+      addToast('删除成功', 'success')
       setNamespaces((prev) => prev.filter((n) => n.id !== ns.id))
       if (selectedNamespace?.id === ns.id) {
         setSelectedNamespace(null)
         setKeys([])
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete namespace')
+      setDeleteTarget(null)
+    } catch {
+      // api 已自动弹出错误 toast，此处仅收尾
     } finally {
       setDeletingId(null)
+      setConfirmLoading(false)
     }
   }
 
@@ -131,7 +142,7 @@ export default function KV() {
     setKeyError('')
     const trimmedName = keyName.trim()
     if (!trimmedName) {
-      setKeyError('Key name is required')
+      setKeyError('键名不能为空')
       return
     }
     setKeySaving(true)
@@ -143,51 +154,58 @@ export default function KV() {
           body.expiration_ttl = ttl
         }
       }
-      const response = await fetch(
+      // silent: 键编辑弹窗内联 keyError 展示
+      await apiPut(
         `/api/accounts/${accountId}/kv/${selectedNamespace.id}/keys/${encodeURIComponent(trimmedName)}`,
-        { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+        body,
+        { silent: true }
       )
-      const data = await response.json()
-      if (data.error) throw new Error(data.error)
+      addToast('保存成功', 'success')
       setShowKeyModal(false)
       fetchKeys(selectedNamespace.id)
     } catch (err) {
-      setKeyError(err instanceof Error ? err.message : 'Failed to save key')
+      setKeyError(err instanceof Error ? err.message : '保存键失败')
     } finally {
       setKeySaving(false)
     }
   }
 
-  const handleDeleteKey = async (keyName: string) => {
+  const handleDeleteKey = async (targetName: string) => {
     if (!selectedNamespace) return
-    if (!confirm(`Delete key "${keyName}"?`)) return
-    setDeletingKeyName(keyName)
+    setDeletingKeyName(targetName)
+    setConfirmLoading(true)
     try {
-      const response = await fetch(
-        `/api/accounts/${accountId}/kv/${selectedNamespace.id}/keys/${encodeURIComponent(keyName)}`,
-        { method: 'DELETE' }
+      await apiDelete(
+        `/api/accounts/${accountId}/kv/${selectedNamespace.id}/keys/${encodeURIComponent(targetName)}`
       )
-      const data = await response.json()
-      if (data.error) throw new Error(data.error)
+      addToast('删除成功', 'success')
+      setDeleteTarget(null)
       fetchKeys(selectedNamespace.id)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete key')
+    } catch {
+      // api 已自动弹出错误 toast，此处仅收尾
     } finally {
       setDeletingKeyName(null)
+      setConfirmLoading(false)
     }
   }
 
-  const handleViewKey = async (keyName: string) => {
-    if (!selectedNamespace) return
+  const fetchKeyValue = async (targetName: string): Promise<string | null> => {
+    if (!selectedNamespace) return null
     try {
-      const response = await fetch(
-        `/api/accounts/${accountId}/kv/${selectedNamespace.id}/keys/${encodeURIComponent(keyName)}`
+      const data = await apiGet<{ key: string; value: string }>(
+        `/api/accounts/${accountId}/kv/${selectedNamespace.id}/keys/${encodeURIComponent(targetName)}`
       )
-      const data = await response.json()
-      if (data.error) throw new Error(data.error)
-      setViewingKey({ name: data.key, value: data.value })
+      return data.value
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch key value')
+      setError(err instanceof Error ? err.message : '读取键值失败')
+      return null
+    }
+  }
+
+  const handleViewKey = async (targetName: string) => {
+    const value = await fetchKeyValue(targetName)
+    if (value !== null) {
+      setViewingKey({ name: targetName, value })
     }
   }
 
@@ -238,12 +256,7 @@ export default function KV() {
               </Button>
             </div>
 
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6">
-                <p className="text-red-400">{error}</p>
-                <button onClick={() => setError('')} className="text-sm text-red-400 hover:text-red-300 mt-2">Dismiss</button>
-              </div>
-            )}
+            <ErrorBanner error={error} onDismiss={() => setError('')} />
 
             <div className="bg-cf-dark-800 rounded-xl shadow-lg border border-cf-dark-700">
               {keys.length === 0 && !keysLoading ? (
@@ -292,11 +305,12 @@ export default function KV() {
                                   setKeyExpiration('')
                                   setKeyError('')
                                   setShowKeyModal(true)
-                                  handleViewKey(key.name).then(() => {
-                                    setViewingKey((prev) => {
-                                      if (prev) setKeyValue(prev.value)
-                                      return null
-                                    })
+                                  // M11: 副作用放在 updater 之外，setViewingKey 保持纯函数
+                                  fetchKeyValue(key.name).then((value) => {
+                                    if (value !== null) {
+                                      setKeyValue(value)
+                                      setViewingKey(null)
+                                    }
                                   })
                                 }}
                                 className="text-sm px-3 py-1"
@@ -305,7 +319,7 @@ export default function KV() {
                               </Button>
                               <Button
                                 variant="danger"
-                                onClick={() => handleDeleteKey(key.name)}
+                                onClick={() => setDeleteTarget({ kind: 'key', name: key.name })}
                                 loading={deletingKeyName === key.name}
                                 className="text-sm px-3 py-1"
                               >
@@ -349,12 +363,7 @@ export default function KV() {
               </Button>
             </div>
 
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6">
-                <p className="text-red-400">{error}</p>
-                <button onClick={() => setError('')} className="text-sm text-red-400 hover:text-red-300 mt-2">Dismiss</button>
-              </div>
-            )}
+            <ErrorBanner error={error} onDismiss={() => setError('')} />
 
             {loading ? (
               <div className="flex items-center justify-center py-20">
@@ -407,7 +416,7 @@ export default function KV() {
                                 </Button>
                                 <Button
                                   variant="danger"
-                                  onClick={() => handleDeleteNamespace(ns)}
+                                  onClick={() => setDeleteTarget({ kind: 'namespace', ns })}
                                   loading={deletingId === ns.id}
                                   className="text-sm px-3 py-1"
                                 >
@@ -528,6 +537,37 @@ export default function KV() {
             </div>
           </div>
         )}
+        {/* Delete Confirmation Dialog */}
+        <ConfirmDialog
+          open={deleteTarget !== null}
+          title={deleteTarget?.kind === 'namespace' ? '删除命名空间' : '删除键'}
+          message={
+            deleteTarget?.kind === 'namespace'
+              ? `确定要删除命名空间 "${deleteTarget.ns.title}" 吗？此操作不可撤销。`
+              : deleteTarget?.kind === 'key'
+                ? `确定要删除键 "${deleteTarget.name}" 吗？此操作不可撤销。`
+                : ''
+          }
+          confirmText="删除"
+          danger
+          requireName={
+            deleteTarget?.kind === 'namespace'
+              ? deleteTarget.ns.title
+              : deleteTarget?.kind === 'key'
+                ? deleteTarget.name
+                : undefined
+          }
+          loading={confirmLoading}
+          onConfirm={() => {
+            if (!deleteTarget) return
+            if (deleteTarget.kind === 'namespace') {
+              handleDeleteNamespace(deleteTarget.ns)
+            } else {
+              handleDeleteKey(deleteTarget.name)
+            }
+          }}
+          onClose={() => setDeleteTarget(null)}
+        />
       </div>
     </Layout>
   )

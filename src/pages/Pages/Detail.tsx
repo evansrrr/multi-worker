@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Layout from '../../components/layout/Layout'
 import Button from '../../components/ui/Button'
+import ErrorBanner from '../../components/ui/ErrorBanner'
+import { useToast } from '../../hooks/useToast'
+import { api, apiGet } from '../../lib/api'
 
 interface PagesProjectDetail {
   id: string
@@ -15,13 +18,14 @@ interface PagesProjectDetail {
 export default function PagesDetail() {
   const { accountId, projectName } = useParams<{ accountId: string; projectName: string }>()
   const navigate = useNavigate()
+  const { addToast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [project, setProject] = useState<PagesProjectDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [deploying, setDeploying] = useState(false)
-  const [deployResult, setDeployResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [deploySuccess, setDeploySuccess] = useState('')
 
   useEffect(() => {
     fetchProject()
@@ -29,16 +33,12 @@ export default function PagesDetail() {
 
   const fetchProject = async () => {
     try {
-      const response = await fetch(`/api/accounts/${accountId}/pages/${projectName}`)
-      const data = await response.json()
-
-      if (data.error) {
-        throw new Error(data.error)
-      }
-
-      setProject(data.project)
+      const data = await apiGet<{ project?: PagesProjectDetail }>(
+        `/api/accounts/${accountId}/pages/${projectName}`
+      )
+      setProject(data.project ?? null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load Pages project')
+      setError(err instanceof Error ? err.message : '加载 Pages 项目详情失败')
     } finally {
       setLoading(false)
     }
@@ -53,28 +53,23 @@ export default function PagesDetail() {
     if (!file) return
 
     setDeploying(true)
-    setDeployResult(null)
+    setDeploySuccess('')
     setError('')
 
     try {
       const formData = new FormData()
       formData.append('files', file)
 
-      const response = await fetch(`/api/accounts/${accountId}/pages/${projectName}/deploy`, {
+      await api(`/api/accounts/${accountId}/pages/${projectName}/deploy`, {
         method: 'POST',
         body: formData,
       })
 
-      const data = await response.json()
-
-      if (data.error) {
-        throw new Error(data.error)
-      }
-
-      setDeployResult({ success: true, message: 'Pages project deployed successfully!' })
+      setDeploySuccess('Pages 项目部署成功！')
+      addToast('部署成功', 'success')
       await fetchProject()
-    } catch (err) {
-      setDeployResult({ success: false, message: err instanceof Error ? err.message : 'Deploy failed' })
+    } catch {
+      // 错误已由 api 自动 toast，此处仅收尾
     } finally {
       setDeploying(false)
       if (fileInputRef.current) {
@@ -131,17 +126,7 @@ export default function PagesDetail() {
         </div>
 
         {/* Error */}
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6">
-            <p className="text-red-400">{error}</p>
-            <button
-              onClick={() => setError('')}
-              className="text-sm text-red-400 hover:text-red-300 mt-2"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
+        <ErrorBanner error={error} onDismiss={() => setError('')} />
 
         {/* Basic Info Card */}
         <div className="bg-cf-dark-800 rounded-xl border border-cf-dark-700 p-6 mb-6">
@@ -217,15 +202,9 @@ export default function PagesDetail() {
           </Button>
 
           {/* Deploy result */}
-          {deployResult && (
-            <div
-              className={`mt-4 p-4 rounded-lg border ${
-                deployResult.success
-                  ? 'bg-green-500/10 border-green-500/30 text-green-400'
-                  : 'bg-red-500/10 border-red-500/30 text-red-400'
-              }`}
-            >
-              {deployResult.message}
+          {deploySuccess && (
+            <div className="mt-4 p-4 rounded-lg border bg-green-500/10 border-green-500/30 text-green-400">
+              {deploySuccess}
             </div>
           )}
         </div>

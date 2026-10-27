@@ -4,10 +4,21 @@ import Layout from '../../components/layout/Layout'
 import ResourceTable from '../../components/dashboard/ResourceTable'
 import BatchToolbar from '../../components/dashboard/BatchToolbar'
 import BatchDeployModal from '../../components/dashboard/BatchDeployModal'
+import ErrorBanner from '../../components/ui/ErrorBanner'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import { apiGet, apiPost } from '../../lib/api'
+import { useToast } from '../../hooks/useToast'
 import { ResourceItem } from '../../types'
+
+interface BatchResult {
+  name: string
+  success: boolean
+  error?: string
+}
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const { addToast } = useToast()
   const [resources, setResources] = useState<ResourceItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -16,6 +27,7 @@ export default function Dashboard() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [batchLoading, setBatchLoading] = useState(false)
   const [showDeployModal, setShowDeployModal] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   useEffect(() => {
     fetchResources()
@@ -25,15 +37,10 @@ export default function Dashboard() {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch('/api/resources')
-      const data = await res.json()
-      if (data.resources) {
-        setResources(data.resources)
-      } else if (data.error) {
-        setError(data.error.message || 'Failed to fetch resources')
-      }
+      const data = await apiGet<{ resources?: ResourceItem[] }>('/api/resources')
+      setResources(data.resources || [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch resources')
+      setError(err instanceof Error ? err.message : '加载资源列表失败')
     } finally {
       setLoading(false)
     }
@@ -118,72 +125,73 @@ export default function Dashboard() {
     return sortedResources.filter((r) => selected.has(`${r.accountId}:${r.name}`))
   }, [sortedResources, selected])
 
-  const handleBatchDelete = async () => {
+  /** 批量结果逐项汇总：整体成功 toast，部分失败把失败项名列进 ErrorBanner。 */
+  const reportBatchResults = (results: BatchResult[], action: '删除' | '部署') => {
+    const failures = results.filter((r) => !r.success)
+    if (failures.length === 0) {
+      addToast(`批量${action}成功`, 'success')
+      return
+    }
+    setError(
+      `批量${action}完成，${failures.length} 项失败：${failures.map((f) => f.name).join('、')}`
+    )
+  }
+
+  const buildTargets = () =>
+    selectedResources.map((r) => ({
+      accountId: r.accountId,
+      name: r.name,
+      type: r.type,
+    }))
+
+  const runBatchDelete = async () => {
     if (selected.size === 0) return
 
     setBatchLoading(true)
     setError('')
     try {
-      const targets = selectedResources.map((r) => ({
-        accountId: r.accountId,
-        name: r.name,
-        type: r.type,
-      }))
-      const res = await fetch('/api/batch/delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targets }),
+      const data = await apiPost<{ results?: BatchResult[] }>('/api/batch/delete', {
+        targets: buildTargets(),
       })
-      const data = await res.json()
       if (data.results) {
-        const failures = data.results.filter((r: { success: boolean }) => !r.success)
-        if (failures.length > 0) {
-          setError(`Failed to delete: ${failures.map((f: { name: string }) => f.name).join(', ')}`)
-        }
-        setSelected(new Set())
-        await fetchResources()
-      } else if (data.error) {
-        setError(data.error.message || 'Batch delete failed')
+        reportBatchResults(data.results, '删除')
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Batch delete failed')
+      setSelected(new Set())
+      await fetchResources()
+      setShowDeleteConfirm(false)
+    } catch {
+      // api() 已自动弹错误 toast；保持确认框打开以便重试
     } finally {
       setBatchLoading(false)
     }
+  }
+
+  const handleBatchDelete = () => {
+    if (selected.size === 0) return
+    setShowDeleteConfirm(true)
   }
 
   const handleBatchDeploy = async (file: File) => {
     setBatchLoading(true)
     setError('')
     try {
-      const targets = selectedResources.map((r) => ({
-        accountId: r.accountId,
-        name: r.name,
-        type: r.type,
-      }))
       const formData = new FormData()
       formData.append('files', file)
-      formData.append('targets', JSON.stringify(targets))
+      formData.append('targets', JSON.stringify(buildTargets()))
 
-      const res = await fetch('/api/batch/deploy', {
-        method: 'POST',
-        body: formData,
-      })
-      const data = await res.json()
+      const data = await apiPost<{ results?: BatchResult[] }>(
+        '/api/batch/deploy',
+        formData,
+        // 由 BatchDeployModal 内联展示错误，关闭自动 toast 避免双份反馈
+        { silent: true }
+      )
       if (data.results) {
-        const failures = data.results.filter((r: { success: boolean }) => !r.success)
-        if (failures.length > 0) {
-          setError(`Failed to deploy: ${failures.map((f: { name: string }) => f.name).join(', ')}`)
-        }
-        setSelected(new Set())
-        await fetchResources()
-      } else if (data.error) {
-        setError(data.error.message || 'Batch deploy failed')
+        reportBatchResults(data.results, '部署')
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Batch deploy failed')
-      throw err
+      setSelected(new Set())
+      await fetchResources()
     } finally {
+      // 失败时错误向上抛回 BatchDeployModal 内联展示（无需 catch 再抛）
       setBatchLoading(false)
     }
   }
@@ -198,19 +206,7 @@ export default function Dashboard() {
         </div>
 
         {/* Error banner */}
-        {error && (
-          <div className="mb-4 bg-red-500/10 border border-red-500/30 rounded-lg p-4 flex items-start justify-between">
-            <p className="text-sm text-red-400">{error}</p>
-            <button
-              onClick={() => setError('')}
-              className="text-red-400 hover:text-red-300 ml-4 flex-shrink-0"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        )}
+        <ErrorBanner error={error} onDismiss={() => setError('')} />
 
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
@@ -255,6 +251,24 @@ export default function Dashboard() {
         onDelete={handleBatchDelete}
         onDeploy={() => setShowDeployModal(true)}
         loading={batchLoading}
+      />
+
+      {/* Batch delete confirmation */}
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title="批量删除资源"
+        message={
+          <>
+            将删除选中的 {selectedResources.length} 个资源：
+            {selectedResources.map((r) => r.name).join('、')}。此操作不可恢复。
+          </>
+        }
+        confirmText="删除"
+        danger
+        requireName="删除"
+        loading={batchLoading}
+        onConfirm={runBatchDelete}
+        onClose={() => setShowDeleteConfirm(false)}
       />
 
       {/* Deploy modal */}

@@ -1,8 +1,11 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { ToastProvider } from './contexts/ToastContext'
 import { ToastContainer } from './components/ui/Toast'
 import { useAuth } from './hooks/useAuth'
+import { useToast } from './hooks/useToast'
+import { subscribeToast } from './lib/api'
 import Login from './pages/Auth/Login'
 import Setup from './pages/Auth/Setup'
 import Dashboard from './pages/Dashboard/Index'
@@ -151,6 +154,13 @@ function AppRoutes() {
   )
 }
 
+/** Bridges the module-level toast bus (used by the api client) into React. */
+function ToastBridge() {
+  const { addToast } = useToast()
+  useEffect(() => subscribeToast((message, type) => addToast(message, type)), [addToast])
+  return null
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -158,6 +168,7 @@ function App() {
         <ToastProvider>
           <AppRoutes />
           <ToastContainer />
+          <ToastBridge />
         </ToastProvider>
       </AuthProvider>
     </BrowserRouter>

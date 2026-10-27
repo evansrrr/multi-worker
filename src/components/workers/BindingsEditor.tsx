@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import Button from '../ui/Button'
 import Input from '../ui/Input'
+import ErrorBanner from '../ui/ErrorBanner'
+import { useToast } from '../../hooks/useToast'
+import { apiGet, apiPut } from '../../lib/api'
 
 interface Binding {
   name: string
@@ -72,6 +75,7 @@ function BindingTypeBadge({ type }: { type: string }) {
 }
 
 export default function BindingsEditor({ accountId, workerName, onClose }: BindingsEditorProps) {
+  const { addToast } = useToast()
   const [bindings, setBindings] = useState<Binding[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -88,16 +92,12 @@ export default function BindingsEditor({ accountId, workerName, onClose }: Bindi
 
   const fetchBindings = async () => {
     try {
-      const response = await fetch(`/api/accounts/${accountId}/workers/${workerName}/bindings`)
-      const data = await response.json()
-
-      if (data.error) {
-        throw new Error(data.error)
-      }
-
+      const data = await apiGet<{ bindings?: Binding[] }>(
+        `/api/accounts/${accountId}/workers/${workerName}/bindings`
+      )
       setBindings(data.bindings || [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load bindings')
+      setError(err instanceof Error ? err.message : '加载绑定失败')
     } finally {
       setLoading(false)
     }
@@ -105,12 +105,10 @@ export default function BindingsEditor({ accountId, workerName, onClose }: Bindi
 
   const fetchAvailableResources = async () => {
     try {
-      const [kvRes, d1Res] = await Promise.all([
-        fetch(`/api/accounts/${accountId}/kv`),
-        fetch(`/api/accounts/${accountId}/d1`),
+      const [kvData, d1Data] = await Promise.all([
+        apiGet<{ namespaces?: KvNamespace[] }>(`/api/accounts/${accountId}/kv`),
+        apiGet<{ databases?: D1Database[] }>(`/api/accounts/${accountId}/d1`),
       ])
-      const kvData = await kvRes.json()
-      const d1Data = await d1Res.json()
       setKvNamespaces(kvData.namespaces || [])
       setD1Databases(d1Data.databases || [])
     } catch {
@@ -123,22 +121,18 @@ export default function BindingsEditor({ accountId, workerName, onClose }: Bindi
     setError('')
 
     try {
-      const response = await fetch(`/api/accounts/${accountId}/workers/${workerName}/bindings`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bindings }),
-      })
-
-      const data = await response.json()
-
-      if (data.error) {
-        throw new Error(data.error)
-      }
+      // 保存失败在本弹窗内联展示，故 silent
+      const data = await apiPut<{ bindings?: Binding[] }>(
+        `/api/accounts/${accountId}/workers/${workerName}/bindings`,
+        { bindings },
+        { silent: true }
+      )
 
       setBindings(data.bindings || [])
+      addToast('绑定已保存', 'success')
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save bindings')
+      setError(err instanceof Error ? err.message : '保存绑定失败')
     } finally {
       setSaving(false)
     }
@@ -213,11 +207,7 @@ export default function BindingsEditor({ accountId, workerName, onClose }: Bindi
           </button>
         </div>
 
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-4">
-            <p className="text-red-400">{error}</p>
-          </div>
-        )}
+        {error && <ErrorBanner error={error} onDismiss={() => setError('')} />}
 
         <div className="flex-1 overflow-y-auto mb-4">
           {bindings.length === 0 ? (

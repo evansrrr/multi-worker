@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Button from '../ui/Button'
 import Input from '../ui/Input'
+import ErrorBanner from '../ui/ErrorBanner'
 
 interface CreateProjectModalProps {
   open: boolean
@@ -25,7 +26,7 @@ export default function CreateProjectModal({ open, onClose, onCreate }: CreatePr
       setProductionBranch('main')
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create project')
+      setError(err instanceof Error ? err.message : '创建 Pages 项目失败')
     } finally {
       setLoading(false)
     }
@@ -90,9 +91,7 @@ export default function CreateProjectModal({ open, onClose, onCreate }: CreatePr
             onChange={(e) => setProductionBranch(e.target.value)}
           />
 
-          {error && (
-            <p className="text-sm text-red-500">{error}</p>
-          )}
+          {error && <ErrorBanner error={error} onDismiss={() => setError('')} />}
 
           <div className="flex gap-3 pt-2">
             <Button

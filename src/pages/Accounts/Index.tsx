@@ -3,6 +3,10 @@ import AccountCard from '../../components/accounts/AccountCard'
 import AddAccountModal from '../../components/accounts/AddAccountModal'
 import Button from '../../components/ui/Button'
 import Layout from '../../components/layout/Layout'
+import ErrorBanner from '../../components/ui/ErrorBanner'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import { apiGet, apiPost, apiDelete } from '../../lib/api'
+import { useToast } from '../../hooks/useToast'
 
 interface Account {
   id: string
@@ -11,25 +15,43 @@ interface Account {
   type?: string
 }
 
+/**
+ * AddAccountModal 展示的“创建 API Token”提示框是从抛出错误的 message 里解析
+ * `hint:` 得到的。api() 只透出 `error` 字符串，这里按后端 POST /api/accounts
+ * 的两类错误补回 hint，保持弹窗提示行为不变。
+ */
+const ACCOUNT_ERROR_HINTS: Array<[string, string]> = [
+  [
+    'Token verification failed',
+    "Please create an API Token at https://dash.cloudflare.com/profile/api-tokens with 'Edit Cloudflare Workers' or 'All Resources' permissions",
+  ],
+  [
+    'No accounts found',
+    "Make sure your token has 'Account - Workers' or 'All Resources' permissions",
+  ],
+]
+
+function toAddAccountError(err: unknown): Error {
+  const message = err instanceof Error ? err.message : '添加账户失败'
+  const matched = ACCOUNT_ERROR_HINTS.find(([prefix]) => message.startsWith(prefix))
+  return new Error(matched ? `${message} hint: ${matched[1]}` : message)
+}
+
 export default function Accounts() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<Account | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const { addToast } = useToast()
 
   const fetchAccounts = async () => {
     try {
-      const response = await fetch('/api/accounts')
-      const data = await response.json()
-
-      if (data.error) {
-        throw new Error(data.error)
-      }
-
+      const data = await apiGet<{ accounts?: Account[] }>('/api/accounts')
       setAccounts(data.accounts || [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load accounts')
+      setError(err instanceof Error ? err.message : '加载账户列表失败')
     } finally {
       setLoading(false)
     }
@@ -40,45 +62,36 @@ export default function Accounts() {
   }, [])
 
   const handleAddAccount = async (token: string, name?: string) => {
-    const response = await fetch('/api/accounts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, name }),
-    })
+    try {
+      const data = await apiPost<{ account?: Account }>(
+        '/api/accounts',
+        { token, name },
+        // 弹窗表单内联展示错误（含 hint），关闭自动 toast 避免双份反馈
+        { silent: true }
+      )
 
-    const data = await response.json()
-
-    if (data.error) {
-      // Include hint in error message if available
-      const errorMsg = data.hint ? `${data.error} hint: ${data.hint}` : data.error
-      throw new Error(errorMsg)
-    }
-
-    if (data.account) {
-      setAccounts((prev) => [...prev, data.account])
+      if (data.account) {
+        setAccounts((prev) => [...prev, data.account as Account])
+        addToast('账户已添加', 'success')
+      }
+    } catch (err) {
+      // AddAccountModal 会捕获并内联展示，这里把 hint 拼回 message
+      throw toAddAccountError(err)
     }
   }
 
-  const handleDeleteAccount = async (id: string) => {
-    if (!confirm('Are you sure you want to remove this account?')) {
-      return
-    }
+  const confirmDeleteAccount = async () => {
+    if (!deleteTarget) return
+    const { id } = deleteTarget
 
     setDeletingId(id)
     try {
-      const response = await fetch(`/api/accounts/${id}`, {
-        method: 'DELETE',
-      })
-
-      const data = await response.json()
-
-      if (data.error) {
-        throw new Error(data.error)
-      }
-
+      await apiDelete(`/api/accounts/${id}`)
       setAccounts((prev) => prev.filter((a) => a.id !== id))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete account')
+      addToast('账户已删除', 'success')
+      setDeleteTarget(null)
+    } catch {
+      // api() 已自动弹错误 toast；保持确认框打开以便重试
     } finally {
       setDeletingId(null)
     }
@@ -114,17 +127,7 @@ export default function Accounts() {
           </Button>
         </div>
 
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6">
-            <p className="text-red-400">{error}</p>
-            <button
-              onClick={() => setError('')}
-              className="text-sm text-red-400 hover:text-red-300 mt-2"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
+        <ErrorBanner error={error} onDismiss={() => setError('')} />
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
@@ -165,7 +168,7 @@ export default function Accounts() {
                 email={account.email}
                 type={account.type}
                 onManage={() => handleManageAccount(account.id)}
-                onDelete={() => handleDeleteAccount(account.id)}
+                onDelete={() => setDeleteTarget(account)}
                 deleting={deletingId === account.id}
               />
             ))}
@@ -177,6 +180,24 @@ export default function Accounts() {
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
         onAdd={handleAddAccount}
+      />
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="删除账户"
+        message={
+          <>
+            确定要删除账户{' '}
+            <span className="font-mono text-cf-orange">{deleteTarget?.name}</span>{' '}
+            吗？删除后该账户的凭据将被移除，此操作不可恢复。
+          </>
+        }
+        confirmText="删除"
+        danger
+        requireName={deleteTarget?.name}
+        loading={deletingId !== null}
+        onConfirm={confirmDeleteAccount}
+        onClose={() => setDeleteTarget(null)}
       />
     </Layout>
   )

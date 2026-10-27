@@ -2,7 +2,7 @@
  * POST /api/accounts/:id/verify - Verify token works
  */
 
-import { getAccount, getConfig, type Account } from "../../../lib/kv";
+import { getAccount, getConfig } from "../../../lib/kv";
 import { decryptData } from "../../../lib/crypto";
 
 interface Env {

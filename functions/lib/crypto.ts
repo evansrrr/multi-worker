@@ -25,12 +25,15 @@ export async function verifyPassword(
 }
 
 export async function generateEncryptionKey(): Promise<string> {
-  const key = await crypto.subtle.generateKey(
+  const key = (await crypto.subtle.generateKey(
     { name: "AES-GCM", length: 256 },
     true,
     ["encrypt", "decrypt"]
-  );
-  const rawKey = await crypto.subtle.exportKey("raw", key);
+  )) as CryptoKey;
+  const rawKey = (await crypto.subtle.exportKey(
+    "raw",
+    key
+  )) as ArrayBuffer;
   return btoa(String.fromCharCode(...new Uint8Array(rawKey)));
 }
 

@@ -8,44 +8,6 @@ export interface Account {
   iv: string
 }
 
-export interface AccountMetadata {
-  id: string
-  name: string
-  type: 'account' | 'subaccount'
-  settings: Record<string, unknown>
-}
-
-export interface Worker {
-  id: string
-  name: string
-  created_on: string
-  /** Beta Workers API returns `updated_on`; classic scripts return `modified_on`. */
-  updated_on?: string
-  modified_on?: string
-  deployed_on?: string
-  logpush?: boolean
-  subdomain?: { enabled: boolean; previews_enabled: boolean }
-  tags?: string[]
-  /** Only present for script-style listings — the Workers entity API omits these. */
-  routes?: WorkerRoute[]
-  bindings?: WorkerBinding[]
-}
-
-export interface WorkerRoute {
-  pattern: string
-  script: string
-}
-
-export interface WorkerBinding {
-  type: string
-  name: string
-  namespace_id?: string
-  database_id?: string
-  value?: string
-  service?: string
-  domain?: string
-}
-
 export interface PagesProject {
   id: string
   name: string
@@ -83,20 +45,6 @@ export interface D1Database {
 export interface D1Table {
   name: string
   sql: string
-}
-
-export interface D1Result<T = unknown> {
-  results: T[]
-  success: boolean
-  meta: {
-    duration?: number
-    changes?: number
-    last_row_id?: number
-    changed_db?: boolean
-    size_after?: number
-    rows_read?: number
-    rows_written?: number
-  }
 }
 
 export interface ApiResponse<T = unknown> {

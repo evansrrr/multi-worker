@@ -4,21 +4,16 @@ import Button from '../../components/ui/Button'
 import ErrorBanner from '../../components/ui/ErrorBanner'
 import { useToast } from '../../hooks/useToast'
 import { api, apiGet } from '../../lib/api'
+import LoadingBlock from '../../components/ui/LoadingBlock'
+import { formatDateTime } from '../../lib/datetime'
 
 interface WorkerDetail {
   id: string
   name: string
-  created_on: string
-  /** Beta Workers API returns `updated_on`; classic scripts return `modified_on`. */
+  created_on?: string
+  /** 后端已把经典脚本的 modified_on 归一成 updated_on。 */
   updated_on?: string
-  modified_on?: string
-  deployed_on?: string
-  routes?: Array<{
-    pattern: string
-    zone_id: string
-    zone_name: string
-    priority: number
-  }>
+  routes?: Array<{ id?: string; pattern?: string; script?: string }>
 }
 
 export default function WorkerDetail() {
@@ -84,22 +79,8 @@ export default function WorkerDetail() {
     }
   }
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }
-
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin h-8 w-8 border-4 border-cf-orange border-t-transparent rounded-full" />
-      </div>
-    )
+    return <LoadingBlock label="正在加载 Worker 详情" />
   }
 
   return (
@@ -112,7 +93,7 @@ export default function WorkerDetail() {
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
         </svg>
-        Back to Workers
+        返回 Workers 列表
       </button>
 
         {/* Header */}
@@ -124,7 +105,7 @@ export default function WorkerDetail() {
                 Worker
               </span>
             </div>
-            <p className="text-text-muted mt-1">Worker detail and configuration</p>
+            <p className="text-text-muted mt-1">Worker 详情与配置</p>
           </div>
         </div>
 
@@ -133,54 +114,56 @@ export default function WorkerDetail() {
 
         {/* Basic Info Card */}
         <div className="bg-surface-2 rounded-xl border border-border-subtle p-6 mb-6">
-          <h2 className="text-lg font-semibold text-text-main mb-4">Basic Information</h2>
+          <h2 className="text-lg font-semibold text-text-main mb-4">基本信息</h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-sm text-text-muted">ID</p>
               <p className="text-text-main font-mono text-sm">{worker?.id || '-'}</p>
             </div>
             <div>
-              <p className="text-sm text-text-muted">Name</p>
+              <p className="text-sm text-text-muted">名称</p>
               <p className="text-text-main">{worker?.name || '-'}</p>
             </div>
             <div>
-              <p className="text-sm text-text-muted">Created</p>
-              <p className="text-text-main">{worker?.created_on ? formatDate(worker.created_on) : '-'}</p>
+              <p className="text-sm text-text-muted">创建时间</p>
+              <p className="text-text-main">
+                {worker?.created_on ? formatDateTime(worker.created_on) : '-'}
+              </p>
             </div>
             <div>
-              <p className="text-sm text-text-muted">Modified</p>
+              <p className="text-sm text-text-muted">修改时间</p>
               <p className="text-text-main">
-                {worker?.updated_on || worker?.modified_on
-                  ? formatDate(worker.updated_on || worker.modified_on!)
-                  : '-'}
+                {worker?.updated_on ? formatDateTime(worker.updated_on) : '-'}
               </p>
             </div>
           </div>
+        </div>
 
-          {/* Routes */}
-          {worker?.routes && worker.routes.length > 0 && (
-            <div className="mt-6">
-              <p className="text-sm text-text-muted mb-2">Routes</p>
-              <div className="space-y-2">
-                {worker.routes.map((route, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-2 bg-surface-3 rounded-lg px-3 py-2 text-sm"
-                  >
-                    <span className="text-blue-400 font-mono">{route.pattern}</span>
-                    <span className="text-text-faint">({route.zone_name})</span>
-                  </div>
-                ))}
-              </div>
+        {/* Routes */}
+        <div className="bg-surface-2 rounded-xl border border-border-subtle p-6 mb-6">
+          <h2 className="text-lg font-semibold text-text-main mb-4">路由</h2>
+          {worker?.routes && worker.routes.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {worker.routes.map((route, i) => (
+                <span
+                  key={route.id ?? i}
+                  className="flex items-center gap-2 bg-surface-3 rounded-lg px-3 py-2 text-sm"
+                >
+                  <span className="text-blue-400 font-mono">{route.pattern}</span>
+                  {route.id && <span className="text-text-faint">({route.id})</span>}
+                </span>
+              ))}
             </div>
+          ) : (
+            <p className="text-text-muted text-sm">未绑定任何路由。</p>
           )}
         </div>
 
         {/* Deploy Section */}
-        <div className="bg-surface-2 rounded-xl border border-border-subtle p-6 mb-6">
-          <h2 className="text-lg font-semibold text-text-main mb-4">Deploy</h2>
+        <div className="bg-surface-2 rounded-xl border border-border-subtle p-6">
+          <h2 className="text-lg font-semibold text-text-main mb-4">部署</h2>
           <p className="text-text-muted text-sm mb-4">
-            Upload a ZIP file to deploy a new version of this worker.
+            上传 ZIP 文件即可部署该 Worker 的新版本。
           </p>
           <input
             ref={fileInputRef}
@@ -193,7 +176,7 @@ export default function WorkerDetail() {
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
             </svg>
-            {deploying ? 'Deploying...' : 'Upload & Deploy'}
+            {deploying ? '部署中...' : '上传并部署'}
           </Button>
 
           {/* Deploy result */}
@@ -204,11 +187,6 @@ export default function WorkerDetail() {
           )}
         </div>
 
-        {/* Config Section */}
-        <div className="bg-surface-2 rounded-xl border border-border-subtle p-6">
-          <h2 className="text-lg font-semibold text-text-main mb-4">Configuration</h2>
-          <p className="text-text-muted text-sm">Configuration management coming soon.</p>
-        </div>
       </div>
   )
 }

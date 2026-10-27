@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import ErrorBanner from '../../components/ui/ErrorBanner'
+import PageHeader from '../../components/ui/PageHeader'
 import { apiPut } from '../../lib/api'
 import { useAuth } from '../../hooks/useAuth'
 import { useTheme } from '../../hooks/useTheme'
@@ -11,18 +12,15 @@ import { useToast } from '../../hooks/useToast'
 type AppearanceMode = 'light' | 'dark' | 'system'
 
 const APPEARANCE_OPTIONS: { value: AppearanceMode; label: string; description: string }[] = [
-  { value: 'light', label: 'Light', description: 'Always use light theme' },
-  { value: 'dark', label: 'Dark', description: 'Always use dark theme' },
-  { value: 'system', label: 'System', description: 'Follow system preference' },
+  { value: 'light', label: '浅色', description: '始终使用浅色主题' },
+  { value: 'dark', label: '深色', description: '始终使用深色主题' },
+  { value: 'system', label: '跟随系统', description: '跟随操作系统的明暗偏好' },
 ]
 
 export default function Settings() {
   return (
     <div className="max-w-2xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-cf-orange">Settings</h1>
-        <p className="text-text-muted mt-1">Manage your application settings</p>
-      </div>
+      <PageHeader title="设置" description="管理界面外观与管理员密码" />
 
       <AppearanceSection />
       <PasswordSection />
@@ -46,8 +44,8 @@ function AppearanceSection() {
 
   return (
     <div className="bg-surface-2 rounded-xl p-6 border border-border-subtle">
-      <h2 className="text-lg font-semibold text-text-main mb-1">Appearance</h2>
-      <p className="text-sm text-text-muted mb-4">Choose your preferred theme</p>
+      <h2 className="text-lg font-semibold text-text-main mb-1">外观</h2>
+      <p className="text-sm text-text-muted mb-4">选择偏好的主题模式</p>
 
       <div className="grid grid-cols-3 gap-3">
         {APPEARANCE_OPTIONS.map((option) => (
@@ -73,7 +71,7 @@ function AppearanceSection() {
       </div>
 
       {saved && (
-        <p className="text-sm text-green-400 mt-3">Appearance updated</p>
+        <p className="text-sm text-green-400 mt-3">外观已更新</p>
       )}
     </div>
   )
@@ -94,17 +92,17 @@ function PasswordSection() {
     setError('')
 
     if (newPassword !== confirmPassword) {
-      setError('Passwords do not match')
+      setError('两次输入的新密码不一致')
       return
     }
 
     if (newPassword.length < 8) {
-      setError('New password must be at least 8 characters')
+      setError('新密码至少需要 8 个字符')
       return
     }
 
     if (currentPassword === newPassword) {
-      setError('New password must be different from current password')
+      setError('新密码不能与当前密码相同')
       return
     }
 
@@ -127,7 +125,7 @@ function PasswordSection() {
       }
       navigate('/login')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update password')
+      setError(err instanceof Error ? err.message : '密码更新失败')
     } finally {
       setLoading(false)
     }
@@ -135,15 +133,15 @@ function PasswordSection() {
 
   return (
     <div className="bg-surface-2 rounded-xl p-6 border border-border-subtle">
-      <h2 className="text-lg font-semibold text-text-main mb-1">Change Password</h2>
-      <p className="text-sm text-text-muted mb-4">Update your admin password</p>
+      <h2 className="text-lg font-semibold text-text-main mb-1">修改密码</h2>
+      <p className="text-sm text-text-muted mb-4">更新管理员密码，修改后需要重新登录</p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input
           id="current-password"
           type="password"
-          label="Current Password"
-          placeholder="Enter current password"
+          label="当前密码"
+          placeholder="输入当前密码"
           value={currentPassword}
           onChange={(e) => setCurrentPassword(e.target.value)}
           autoFocus
@@ -152,8 +150,8 @@ function PasswordSection() {
         <Input
           id="new-password"
           type="password"
-          label="New Password"
-          placeholder="Enter new password (min 8 characters)"
+          label="新密码"
+          placeholder="输入新密码（至少 8 个字符）"
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
         />
@@ -161,8 +159,8 @@ function PasswordSection() {
         <Input
           id="confirm-password"
           type="password"
-          label="Confirm New Password"
-          placeholder="Confirm new password"
+          label="确认新密码"
+          placeholder="再次输入新密码"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
         />
@@ -174,7 +172,7 @@ function PasswordSection() {
           loading={loading}
           disabled={!currentPassword || !newPassword || !confirmPassword}
         >
-          Update Password
+          更新密码
         </Button>
       </form>
     </div>

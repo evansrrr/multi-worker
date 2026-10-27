@@ -5,6 +5,8 @@ import BatchToolbar from '../../components/dashboard/BatchToolbar'
 import BatchDeployModal from '../../components/dashboard/BatchDeployModal'
 import ErrorBanner from '../../components/ui/ErrorBanner'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import PageHeader from '../../components/ui/PageHeader'
+import LoadingBlock from '../../components/ui/LoadingBlock'
 import { apiGet, apiPost } from '../../lib/api'
 import { useToast } from '../../hooks/useToast'
 import { ResourceItem } from '../../types'
@@ -22,11 +24,11 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [sortField, setSortField] = useState('modifiedOn')
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [batchLoading, setBatchLoading] = useState(false)
   const [showDeployModal, setShowDeployModal] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [truncated, setTruncated] = useState(false)
+  const [perAccountLimit, setPerAccountLimit] = useState<number | null>(null)
 
   useEffect(() => {
     fetchResources()
@@ -36,8 +38,14 @@ export default function Dashboard() {
     setLoading(true)
     setError('')
     try {
-      const data = await apiGet<{ resources?: ResourceItem[] }>('/api/resources')
+      const data = await apiGet<{
+        resources?: ResourceItem[]
+        truncated?: boolean
+        perAccountLimit?: number
+      }>('/api/resources')
       setResources(data.resources || [])
+      setTruncated(data.truncated ?? false)
+      setPerAccountLimit(data.perAccountLimit ?? null)
     } catch (err) {
       setError(err instanceof Error ? err.message : '加载资源列表失败')
     } finally {
@@ -51,46 +59,16 @@ export default function Dashboard() {
     return { workers, pages, total: resources.length }
   }, [resources])
 
-  const sortedResources = useMemo(() => {
-    const sorted = [...resources].sort((a, b) => {
-      let valA: string
-      let valB: string
-
-      switch (sortField) {
-        case 'name':
-          valA = a.name.toLowerCase()
-          valB = b.name.toLowerCase()
-          break
-        case 'type':
-          valA = a.type
-          valB = b.type
-          break
-        case 'accountName':
-          valA = a.accountName.toLowerCase()
-          valB = b.accountName.toLowerCase()
-          break
-        case 'modifiedOn':
-        default:
-          valA = a.modifiedOn
-          valB = b.modifiedOn
-          break
-      }
-
-      if (valA < valB) return sortDir === 'asc' ? -1 : 1
-      if (valA > valB) return sortDir === 'asc' ? 1 : -1
-      return 0
-    })
-    return sorted
-  }, [resources, sortField, sortDir])
-
-  const handleSort = (field: string) => {
-    if (field === sortField) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
-    } else {
-      setSortField(field)
-      setSortDir('asc')
-    }
-  }
+  // 默认按最近修改倒序；列头排序由 ResourceTable 内的 DataTable 接管
+  const sortedResources = useMemo(
+    () =>
+      [...resources].sort((a, b) => {
+        if (a.modifiedOn < b.modifiedOn) return 1
+        if (a.modifiedOn > b.modifiedOn) return -1
+        return 0
+      }),
+    [resources]
+  )
 
   const handleSelect = (key: string) => {
     setSelected((prev) => {
@@ -197,11 +175,18 @@ export default function Dashboard() {
 
   return (
     <div>
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-text-main mb-1">Dashboard</h1>
-        <p className="text-text-muted">Overview of all your Cloudflare resources</p>
-      </div>
+      <PageHeader
+        title="总览"
+        description="跨账户汇总所有 Cloudflare 资源"
+      />
+
+      {/* 截断提示：部分账户资源过多，聚合只取了每账户前 N 条 */}
+      {truncated && (
+        <div className="mb-6 p-4 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-400 text-sm">
+          部分账户资源较多，此处每个账户只展示前 {perAccountLimit ?? 100} 个 Pages 项目。
+          点击具体账户可查看完整列表。
+        </div>
+      )}
 
       {/* Error banner */}
       <ErrorBanner error={error} onDismiss={() => setError('')} />
@@ -209,7 +194,7 @@ export default function Dashboard() {
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div className="bg-surface-2 rounded-xl p-4 border border-border-subtle">
-          <p className="text-sm text-text-muted mb-1">Total Resources</p>
+          <p className="text-sm text-text-muted mb-1">资源总数</p>
           <p className="text-2xl font-bold text-text-main">{stats.total}</p>
         </div>
         <div className="bg-surface-2 rounded-xl p-4 border border-border-subtle">
@@ -225,9 +210,7 @@ export default function Dashboard() {
       {/* Table */}
       <div className="bg-surface-2 rounded-xl border border-border-subtle">
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="animate-spin h-8 w-8 border-4 border-cf-orange border-t-transparent rounded-full" />
-          </div>
+          <LoadingBlock label="正在加载资源列表" />
         ) : (
           <ResourceTable
             resources={sortedResources}
@@ -235,9 +218,6 @@ export default function Dashboard() {
             onSelect={handleSelect}
             onSelectAll={handleSelectAll}
             onRowClick={handleRowClick}
-            sortField={sortField}
-            sortDir={sortDir}
-            onSort={handleSort}
           />
         )}
       </div>

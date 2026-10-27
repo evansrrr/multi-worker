@@ -4,6 +4,8 @@ import Button from '../../components/ui/Button'
 import ErrorBanner from '../../components/ui/ErrorBanner'
 import { useToast } from '../../hooks/useToast'
 import { api, apiGet } from '../../lib/api'
+import LoadingBlock from '../../components/ui/LoadingBlock'
+import { formatDateTime } from '../../lib/datetime'
 
 interface PagesProjectDetail {
   id: string
@@ -77,22 +79,8 @@ export default function PagesDetail() {
     }
   }
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }
-
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin h-8 w-8 border-4 border-cf-orange border-t-transparent rounded-full" />
-      </div>
-    )
+    return <LoadingBlock label="正在加载 Pages 项目详情" />
   }
 
   return (
@@ -105,7 +93,7 @@ export default function PagesDetail() {
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
         </svg>
-        Back to Pages
+        返回 Pages 列表
       </button>
 
         {/* Header */}
@@ -117,7 +105,7 @@ export default function PagesDetail() {
                 Pages
               </span>
             </div>
-            <p className="text-text-muted mt-1">Pages project detail and configuration</p>
+            <p className="text-text-muted mt-1">Pages 项目详情与配置</p>
           </div>
         </div>
 
@@ -126,22 +114,24 @@ export default function PagesDetail() {
 
         {/* Basic Info Card */}
         <div className="bg-surface-2 rounded-xl border border-border-subtle p-6 mb-6">
-          <h2 className="text-lg font-semibold text-text-main mb-4">Basic Information</h2>
+          <h2 className="text-lg font-semibold text-text-main mb-4">基本信息</h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-sm text-text-muted">ID</p>
               <p className="text-text-main font-mono text-sm">{project?.id || '-'}</p>
             </div>
             <div>
-              <p className="text-sm text-text-muted">Name</p>
+              <p className="text-sm text-text-muted">名称</p>
               <p className="text-text-main">{project?.name || '-'}</p>
             </div>
             <div>
-              <p className="text-sm text-text-muted">Created</p>
-              <p className="text-text-main">{project?.created_on ? formatDate(project.created_on) : '-'}</p>
+              <p className="text-sm text-text-muted">创建时间</p>
+              <p className="text-text-main">
+                {project?.created_on ? formatDateTime(project.created_on) : '-'}
+              </p>
             </div>
             <div>
-              <p className="text-sm text-text-muted">Subdomain</p>
+              <p className="text-sm text-text-muted">子域名</p>
               <p className="text-text-main">
                 {project?.subdomain ? (
                   <a
@@ -162,7 +152,7 @@ export default function PagesDetail() {
           {/* Custom Domains */}
           {project?.domains && project.domains.length > 0 && (
             <div className="mt-6">
-              <p className="text-sm text-text-muted mb-2">Custom Domains</p>
+              <p className="text-sm text-text-muted mb-2">自定义域名</p>
               <div className="space-y-2">
                 {project.domains.map((domain, index) => (
                   <div
@@ -179,9 +169,9 @@ export default function PagesDetail() {
 
         {/* Deploy Section */}
         <div className="bg-surface-2 rounded-xl border border-border-subtle p-6 mb-6">
-          <h2 className="text-lg font-semibold text-text-main mb-4">Deploy</h2>
+          <h2 className="text-lg font-semibold text-text-main mb-4">部署</h2>
           <p className="text-text-muted text-sm mb-4">
-            Upload a ZIP file to deploy a new version of this Pages project.
+            上传 ZIP 文件即可部署该 Pages 项目的新版本。
           </p>
           <input
             ref={fileInputRef}
@@ -194,7 +184,7 @@ export default function PagesDetail() {
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
             </svg>
-            {deploying ? 'Deploying...' : 'Upload & Deploy'}
+            {deploying ? '部署中...' : '上传并部署'}
           </Button>
 
           {/* Deploy result */}
@@ -203,12 +193,6 @@ export default function PagesDetail() {
               {deploySuccess}
             </div>
           )}
-        </div>
-
-        {/* Config Section */}
-        <div className="bg-surface-2 rounded-xl border border-border-subtle p-6">
-          <h2 className="text-lg font-semibold text-text-main mb-4">Configuration</h2>
-          <p className="text-text-muted text-sm">Configuration management coming soon.</p>
         </div>
       </div>
   )

@@ -11,13 +11,20 @@
  *   generates the multipart boundary).
  */
 
+/**
+ * 业务错误码（后端 `error.code`）会一并透出，
+ * 这样页面可以按码给出针对性的处理建议（例如 token 权限不足时提示需要哪些权限），
+ * 而不必在前端自己解析响应体或维护一份"文案 → 码"的猜测表。
+ */
 export class ApiError extends Error {
   status: number
+  code?: string | number
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, code?: string | number) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.code = code
   }
 }
 
@@ -99,13 +106,19 @@ export async function api<T = unknown>(
     data && typeof data === 'object' && 'error' in data
       ? (data as { error?: unknown }).error
       : undefined
+
   // Endpoints return either `error: "string"` or `error: { code, message }`.
-  const errorField =
-    typeof rawError === 'string'
-      ? rawError
-      : rawError && typeof rawError === 'object' && 'message' in rawError
-        ? String((rawError as { message?: unknown }).message ?? '')
-        : undefined
+  let errorField: string | undefined
+  let errorCode: string | number | undefined
+  if (typeof rawError === 'string') {
+    errorField = rawError
+  } else if (rawError && typeof rawError === 'object') {
+    const record = rawError as { message?: unknown; code?: unknown }
+    if ('message' in record) errorField = String(record.message ?? '')
+    if (typeof record.code === 'string' || typeof record.code === 'number') {
+      errorCode = record.code
+    }
+  }
 
   if (!response.ok || errorField) {
     const message =
@@ -116,7 +129,7 @@ export async function api<T = unknown>(
     if (!silent && isMutation) {
       emitToast(message, 'error')
     }
-    throw new ApiError(message, response.status)
+    throw new ApiError(message, response.status, errorCode)
   }
 
   return data as T

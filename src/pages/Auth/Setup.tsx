@@ -17,12 +17,12 @@ export default function Setup() {
     setError('')
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match')
+      setError('两次输入的密码不一致')
       return
     }
 
     if (password.length < 8) {
-      setError('Password must be at least 8 characters')
+      setError('密码至少需要 8 个字符')
       return
     }
 
@@ -32,7 +32,7 @@ export default function Setup() {
       await setup(password)
       navigate('/dashboard')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Setup failed')
+      setError(err instanceof Error ? err.message : '初始化失败')
     } finally {
       setLoading(false)
     }
@@ -43,16 +43,16 @@ export default function Setup() {
       <div className="w-full max-w-md">
         <div className="bg-surface-2 rounded-xl p-8 shadow-xl">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-cf-orange mb-2">Welcome to MultiWorker</h1>
-            <p className="text-text-muted">Set up your admin password to get started</p>
+            <h1 className="text-3xl font-bold text-cf-orange mb-2">欢迎使用 MultiWorker</h1>
+            <p className="text-text-muted">设置管理员密码即可开始使用</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
               id="password"
               type="password"
-              label="Create Password"
-              placeholder="Enter a secure password"
+              label="设置密码"
+              placeholder="输入一个安全密码（至少 8 个字符）"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoFocus
@@ -61,8 +61,8 @@ export default function Setup() {
             <Input
               id="confirmPassword"
               type="password"
-              label="Confirm Password"
-              placeholder="Confirm your password"
+              label="确认密码"
+              placeholder="再次输入密码"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               error={error}
@@ -74,12 +74,12 @@ export default function Setup() {
               loading={loading}
               disabled={!password || !confirmPassword}
             >
-              Create Account
+              完成设置
             </Button>
           </form>
 
           <p className="mt-6 text-sm text-text-faint text-center">
-            This password will be used to access your Cloudflare management dashboard.
+            该密码用于登录 MultiWorker，之后可在「设置」中修改。
           </p>
         </div>
       </div>

@@ -6,6 +6,8 @@ import DeployModal from '../../components/pages/DeployModal'
 import Button from '../../components/ui/Button'
 import ErrorBanner from '../../components/ui/ErrorBanner'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import LoadingBlock from '../../components/ui/LoadingBlock'
+import PageHeader from '../../components/ui/PageHeader'
 import { useToast } from '../../hooks/useToast'
 import { api, apiDelete, apiGet, apiPost } from '../../lib/api'
 
@@ -143,11 +145,10 @@ export default function Pages() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-cf-orange">Pages</h1>
-          <p className="text-text-muted mt-1">Manage Pages projects for this account</p>
-        </div>
+      <PageHeader
+        title="Pages"
+        description="管理当前账户下的 Pages 项目"
+        actions={
           <Button onClick={() => setShowCreateModal(true)}>
             <svg
               className="w-5 h-5"
@@ -162,15 +163,16 @@ export default function Pages() {
                 d="M12 4v16m8-8H4"
               />
             </svg>
-            Create Project
+            创建 Pages 项目
           </Button>
-        </div>
+        }
+      />
 
         <ErrorBanner error={error} onDismiss={() => setError('')} />
 
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="animate-spin h-8 w-8 border-4 border-cf-orange border-t-transparent rounded-full" />
+          <div className="bg-surface-2 rounded-xl shadow-lg border border-border-subtle">
+            <LoadingBlock label="正在加载 Pages 项目列表" />
           </div>
         ) : (
           <div className="bg-surface-2 rounded-xl shadow-lg border border-border-subtle">
@@ -195,7 +197,7 @@ export default function Pages() {
                   loading={loadingMore}
                   className="w-full"
                 >
-                  Load More
+                  加载更多
                 </Button>
               </div>
             )}

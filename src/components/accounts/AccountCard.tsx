@@ -5,9 +5,11 @@ interface AccountCardProps {
   name: string
   email?: string
   type?: string
-  createdOn?: string
   onManage: () => void
+  onVerify: () => void
   onDelete: () => void
+  onRename?: () => void
+  verifying?: boolean
   deleting?: boolean
 }
 
@@ -17,7 +19,10 @@ export default function AccountCard({
   email,
   type,
   onManage,
+  onVerify,
   onDelete,
+  onRename,
+  verifying = false,
   deleting = false,
 }: AccountCardProps) {
   const shortId = id.length > 12 ? `${id.slice(0, 8)}...` : id
@@ -42,7 +47,33 @@ export default function AccountCard({
             </svg>
           </div>
           <div>
-            <h3 className="text-text-main font-semibold text-lg">{name}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-text-main font-semibold text-lg">{name}</h3>
+              {onRename && (
+                <button
+                  type="button"
+                  onClick={onRename}
+                  disabled={verifying || deleting}
+                  title="编辑账户名称"
+                  aria-label="编辑账户名称"
+                  className="text-text-faint hover:text-text-main transition-colors disabled:opacity-50"
+                >
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.862 4.487zm0 0L19.5 7.125"
+                    />
+                  </svg>
+                </button>
+              )}
+            </div>
             {email && (
               <p className="text-text-muted text-sm">{email}</p>
             )}
@@ -68,6 +99,7 @@ export default function AccountCard({
         <Button
           variant="secondary"
           onClick={onManage}
+          disabled={verifying || deleting}
           className="flex-1 text-sm"
         >
           <svg
@@ -88,12 +120,38 @@ export default function AccountCard({
               d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
             />
           </svg>
-          Manage
+          管理
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={onVerify}
+          loading={verifying}
+          disabled={deleting}
+          title="重新校验该账户的 API Token"
+          className="text-sm"
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
+          </svg>
+          重新校验
         </Button>
         <Button
           variant="danger"
           onClick={onDelete}
           loading={deleting}
+          disabled={verifying}
+          aria-label="删除账户"
+          title="删除账户"
           className="text-sm"
         >
           <svg

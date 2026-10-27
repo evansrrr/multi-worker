@@ -20,7 +20,7 @@ export default function Login() {
       await login(password)
       navigate('/dashboard')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed')
+      setError(err instanceof Error ? err.message : '登录失败')
     } finally {
       setLoading(false)
     }
@@ -32,15 +32,15 @@ export default function Login() {
         <div className="bg-surface-2 rounded-xl p-8 shadow-xl">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-cf-orange mb-2">MultiWorker</h1>
-            <p className="text-text-muted">Sign in to manage your Cloudflare resources</p>
+            <p className="text-text-muted">登录以管理你的 Cloudflare 资源</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
               id="password"
               type="password"
-              label="Password"
-              placeholder="Enter your password"
+              label="密码"
+              placeholder="输入管理员密码"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               error={error}
@@ -53,7 +53,7 @@ export default function Login() {
               loading={loading}
               disabled={!password}
             >
-              Sign In
+              登录
             </Button>
           </form>
         </div>

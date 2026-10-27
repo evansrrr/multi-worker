@@ -7,33 +7,21 @@ import WorkerDeployModal from '../../components/workers/WorkerDeployModal'
 import Button from '../../components/ui/Button'
 import ErrorBanner from '../../components/ui/ErrorBanner'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import LoadingBlock from '../../components/ui/LoadingBlock'
+import PageHeader from '../../components/ui/PageHeader'
 import { useToast } from '../../hooks/useToast'
 import { api, apiDelete, apiGet, apiPost } from '../../lib/api'
 
 interface Worker {
   id: string
   name: string
-  created_on: string
-  updated_on: string
-  deployed_on?: string
-  routes?: Array<{
-    pattern: string
-    zone_id: string
-    zone_name: string
-    priority: number
-  }>
-}
-
-interface ResultInfo {
-  count?: number
-  page?: number
-  per_page?: number
-  total_count?: number
+  created_on?: string
+  updated_on?: string
+  routes?: Array<{ id?: string; pattern?: string; script?: string }>
 }
 
 interface WorkersResponse {
   workers?: Worker[]
-  result_info?: ResultInfo | null
 }
 
 export default function Workers() {
@@ -42,45 +30,30 @@ export default function Workers() {
   const { addToast } = useToast()
   const [workers, setWorkers] = useState<Worker[]>([])
   const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState('')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [deletingName, setDeletingName] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [bindingsWorkerName, setBindingsWorkerName] = useState<string | null>(null)
   const [deployWorkerName, setDeployWorkerName] = useState<string | null>(null)
-  const [page, setPage] = useState(1)
-  const [resultInfo, setResultInfo] = useState<ResultInfo | null>(null)
 
-  const PER_PAGE = 20
-
-  const fetchWorkers = async (nextPage = 1, append = false) => {
-    if (append) setLoadingMore(true)
-    else setLoading(true)
+  // 经典 /workers/scripts 不支持分页，后端一次返回全部脚本；分页、搜索、排序
+  // 都由 WorkerTable 内部的 DataTable 在客户端完成。
+  const fetchWorkers = async () => {
+    setLoading(true)
     try {
-      const data = await apiGet<WorkersResponse>(
-        `/api/accounts/${accountId}/workers?page=${nextPage}&per_page=${PER_PAGE}`
-      )
-
-      const incoming: Worker[] = data.workers || []
-      setWorkers((prev) => (append ? [...prev, ...incoming] : incoming))
-      setResultInfo(data.result_info || null)
-      setPage(nextPage)
+      const data = await apiGet<WorkersResponse>(`/api/accounts/${accountId}/workers`)
+      setWorkers(data.workers || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : '加载 Worker 列表失败')
     } finally {
       setLoading(false)
-      setLoadingMore(false)
     }
   }
 
   useEffect(() => {
-    fetchWorkers(1, false)
+    fetchWorkers()
   }, [accountId])
-
-  const hasMore = resultInfo
-    ? (resultInfo.page ?? 1) * (resultInfo.per_page ?? PER_PAGE) < (resultInfo.total_count ?? 0)
-    : false
 
   const handleCreateWorker = async (name: string, script?: string) => {
     // 创建失败由 CreateWorkerModal 内联展示，故 silent
@@ -135,11 +108,10 @@ export default function Workers() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-cf-orange">Workers</h1>
-          <p className="text-text-muted mt-1">Manage workers for this account</p>
-        </div>
+      <PageHeader
+        title="Workers"
+        description="管理当前账户下的 Worker"
+        actions={
           <Button onClick={() => setShowCreateModal(true)}>
             <svg
               className="w-5 h-5"
@@ -154,15 +126,16 @@ export default function Workers() {
                 d="M12 4v16m8-8H4"
               />
             </svg>
-            Create Worker
+            创建 Worker
           </Button>
-        </div>
+        }
+      />
 
         <ErrorBanner error={error} onDismiss={() => setError('')} />
 
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="animate-spin h-8 w-8 border-4 border-cf-orange border-t-transparent rounded-full" />
+          <div className="bg-surface-2 rounded-xl shadow-lg border border-border-subtle">
+            <LoadingBlock label="正在加载 Worker 列表" />
           </div>
         ) : (
           <div className="bg-surface-2 rounded-xl shadow-lg border border-border-subtle">
@@ -176,18 +149,6 @@ export default function Workers() {
               }
               deletingName={deletingName}
             />
-            {hasMore && (
-              <div className="p-4 border-t border-border-subtle">
-                <Button
-                  variant="secondary"
-                  onClick={() => fetchWorkers(page + 1, true)}
-                  loading={loadingMore}
-                  className="w-full"
-                >
-                  Load More
-                </Button>
-              </div>
-            )}
           </div>
         )}
 

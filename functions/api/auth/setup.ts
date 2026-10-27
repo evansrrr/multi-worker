@@ -5,11 +5,13 @@
  * If ADMIN_PASSWORD is set and no password exists in KV, it will be used automatically.
  */
 
-import { hashPassword, generateEncryptionKey } from "../../lib/crypto";
+import { hashPassword, ensureEncryptionKey } from "../../lib/crypto";
 import { getConfig, setConfig } from "../../lib/kv";
 
 interface Env {
   TOOL_DATA: KVNamespace;
+  TOKEN_ENC_KEY?: string;
+  ENCRYPTION_KEY_SOURCE?: string;
 }
 
 export const onRequest: PagesFunction<Env> = async (context) => {
@@ -61,10 +63,11 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   }
 
   const passwordHash = await hashPassword(body.password);
-  const encryptionKey = await generateEncryptionKey();
 
   await setConfig(env, "password_hash", passwordHash);
-  await setConfig(env, "encryption_key", encryptionKey);
+  // Uses the Worker Secret TOKEN_ENC_KEY when configured, otherwise
+  // generates and stores a KV key (legacy behaviour).
+  await ensureEncryptionKey(env);
 
   return new Response(
     JSON.stringify({ success: true, data: { message: "Setup complete" } }),

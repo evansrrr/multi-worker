@@ -6,10 +6,14 @@
  */
 
 import { getConfig, getSession, setConfig } from "../../lib/kv";
-import { hashPassword, generateEncryptionKey } from "../../lib/crypto";
+import { hashPassword, ensureEncryptionKey } from "../../lib/crypto";
+import { getSessionIdFromCookie } from "../../lib/cookie";
 
 interface Env {
   TOOL_DATA: KVNamespace;
+  ADMIN_PASSWORD?: string;
+  TOKEN_ENC_KEY?: string;
+  ENCRYPTION_KEY_SOURCE?: string;
 }
 
 export const onRequest: PagesFunction<Env> = async (context) => {
@@ -30,17 +34,13 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   
   // Auto-setup with ADMIN_PASSWORD if environment variable is set
   if (!passwordHash) {
-    // Try to get ADMIN_PASSWORD from various sources
-    const adminPassword = (env as any).ADMIN_PASSWORD || 
-                         (env as any).admin_password ||
-                         (context as any).function?.env?.ADMIN_PASSWORD;
-    
+    const adminPassword = env.ADMIN_PASSWORD;
+
     if (adminPassword) {
       passwordHash = await hashPassword(adminPassword);
-      const encryptionKey = await generateEncryptionKey();
-      
+
       await setConfig(env, "password_hash", passwordHash);
-      await setConfig(env, "encryption_key", encryptionKey);
+      await ensureEncryptionKey(env);
     }
   }
   
@@ -54,12 +54,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     );
   }
 
-  const cookieHeader = request.headers.get("Cookie") || "";
-  const sessionId = cookieHeader
-    .split(";")
-    .map((c) => c.trim())
-    .find((c) => c.startsWith("session="))
-    ?.split("=")[1];
+  const sessionId = getSessionIdFromCookie(request);
 
   if (!sessionId) {
     return new Response(

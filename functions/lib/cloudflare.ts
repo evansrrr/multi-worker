@@ -2,13 +2,15 @@
  * Cloudflare API utilities for managing Workers, Pages, and other resources.
  */
 
-import { getAccount, getConfig } from "./kv";
-import { decryptData } from "./crypto";
+import { getAccount } from "./kv";
+import { decryptData, resolveEncryptionKey } from "./crypto";
 
 const CF_API_BASE = "https://api.cloudflare.com/client/v4";
 
 interface Env {
   TOOL_DATA: KVNamespace;
+  TOKEN_ENC_KEY?: string;
+  ENCRYPTION_KEY_SOURCE?: string;
 }
 
 /**
@@ -21,7 +23,7 @@ export async function getCloudflareToken(
   const account = await getAccount(env, accountId);
   if (!account) return null;
 
-  const encryptionKey = await getConfig(env, "encryption_key");
+  const encryptionKey = await resolveEncryptionKey(env);
   if (!encryptionKey) return null;
 
   try {

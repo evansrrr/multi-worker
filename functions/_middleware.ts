@@ -1,9 +1,14 @@
 /**
  * Auth middleware for API routes.
  * Validates session cookie for all /api/* routes except auth endpoints.
+ *
+ * Session validation (including the session_epoch comparison that
+ * invalidates sessions issued before a password change) happens inside
+ * getSession() in lib/kv.ts.
  */
 
 import { getSession } from "./lib/kv";
+import { getSessionIdFromCookie } from "./lib/cookie";
 
 interface Env {
   TOOL_DATA: KVNamespace;
@@ -31,12 +36,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   }
 
   // Extract session cookie
-  const cookieHeader = request.headers.get("Cookie") || "";
-  const sessionId = cookieHeader
-    .split(";")
-    .map((c) => c.trim())
-    .find((c) => c.startsWith("session="))
-    ?.split("=")[1];
+  const sessionId = getSessionIdFromCookie(request);
 
   if (!sessionId) {
     return new Response(

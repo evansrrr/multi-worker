@@ -15,6 +15,45 @@ interface AuthProviderProps {
   children: ReactNode
 }
 
+/**
+ * Parse a JSON response body without ever surfacing a raw parse error.
+ *
+ * Pages Functions sit behind Cloudflare's edge: when a request times out or a
+ * Worker is interrupted, the browser receives an HTML error page (e.g. 524)
+ * instead of JSON. Calling response.json() on that body throws
+ * `Unexpected token '<'` — a syntax error that tells the user nothing. This
+ * helper detects non-JSON payloads and throws an actionable Chinese message
+ * instead, so transient edge failures read as "retry" rather than a bug.
+ */
+async function readJsonSafely(
+  response: Response,
+  fallbackMessage: string
+): Promise<Record<string, unknown> | null> {
+  const contentType = response.headers.get('content-type') || ''
+  const text = await response.text()
+  if (!contentType.includes('application/json')) {
+    throw new Error(
+      `服务端返回了非 JSON 响应（HTTP ${response.status}${text.trim() ? `：${text.slice(0, 80)}` : ''}）。可能是网络波动导致请求被中断，请稍后重试。`
+    )
+  }
+  try {
+    return JSON.parse(text) as Record<string, unknown>
+  } catch {
+    throw new Error(`${fallbackMessage}（响应内容无法解析）`)
+  }
+}
+
+/** Extract the nested error message from an API error body. */
+function errorMessageOf(data: Record<string, unknown> | null): string | undefined {
+  const error = data?.error
+  if (error && typeof error === 'object') {
+    const message = (error as { message?: unknown }).message
+    if (typeof message === 'string' && message.trim()) return message
+  }
+  if (typeof error === 'string' && error.trim()) return error
+  return undefined
+}
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [needsSetup, setNeedsSetup] = useState(false)
@@ -27,11 +66,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setNeedsSetup(true)
         return
       }
-      const data = await response.json()
-      
-      if (data.success) {
-        setIsAuthenticated(data.data.isAuthenticated)
-        setNeedsSetup(data.data.needsSetup)
+      const data = await readJsonSafely(response, '登录状态检查失败')
+
+      if (data?.success) {
+        const payload = data.data as
+          | { isAuthenticated?: boolean; needsSetup?: boolean }
+          | undefined
+        setIsAuthenticated(payload?.isAuthenticated ?? false)
+        setNeedsSetup(payload?.needsSetup ?? false)
       } else {
         setNeedsSetup(true)
       }
@@ -53,18 +95,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password }),
     })
-    
-    if (!response.ok) {
-      const data = await response.json()
-      throw new Error(data.error?.message || 'Login failed')
-    }
-    
-    const data = await response.json()
-    if (data.success) {
+
+    const data = await readJsonSafely(response, '登录失败')
+    if (response.ok && data?.success) {
       setIsAuthenticated(true)
-    } else {
-      throw new Error(data.error?.message || 'Login failed')
+      return
     }
+    throw new Error(errorMessageOf(data) || '登录失败，请检查密码后重试')
   }
 
   const setup = async (password: string) => {
@@ -73,24 +110,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password }),
     })
-    
-    if (!response.ok) {
-      const data = await response.json()
-      throw new Error(data.error?.message || 'Setup failed')
-    }
-    
-    const data = await response.json()
-    if (data.success) {
+
+    const data = await readJsonSafely(response, '设置密码失败')
+    if (response.ok && data?.success) {
       setIsAuthenticated(true)
       setNeedsSetup(false)
-    } else {
-      throw new Error(data.error?.message || 'Setup failed')
+      return
     }
+    throw new Error(errorMessageOf(data) || '设置密码失败，请重试')
   }
 
   const logout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' })
-    setIsAuthenticated(false)
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+    } finally {
+      setIsAuthenticated(false)
+    }
   }
 
   return (

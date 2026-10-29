@@ -37,17 +37,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     );
   }
 
-  const passwordHash = await getConfig(env, "password_hash");
-  if (!passwordHash) {
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: { code: "NO_PASSWORD", message: "No password set. Please complete setup first." }
-      }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
-    );
-  }
-
+  // Parse the body before touching KV: a malformed body must not cost a
+  // round trip on a slow link.
   let body: { password?: string };
   try {
     body = await request.json<{ password?: string }>();
@@ -73,7 +64,24 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
   // Rate limiting: 5 failed attempts per 15 minutes per client IP.
   const clientIp = request.headers.get("CF-Connecting-IP") || "unknown";
-  const failState = await getLoginFailures(env, clientIp);
+
+  // The stored hash and the failure counter are independent keys, so they are
+  // read concurrently. On a slow link a single KV read can take seconds;
+  // serializing the two would double the login latency for no reason.
+  const [passwordHash, failState] = await Promise.all([
+    getConfig(env, "password_hash"),
+    getLoginFailures(env, clientIp),
+  ]);
+
+  if (!passwordHash) {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: { code: "NO_PASSWORD", message: "No password set. Please complete setup first." }
+      }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
+  }
 
   // Unified failure response. A wrong password and a locked-out IP return the
   // exact same body so the two cases cannot be told apart.
@@ -101,9 +109,14 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     await setConfig(env, "password_hash", await hashPassword(body.password));
   }
 
-  await clearLoginFailures(env, clientIp);
+  // The epoch read and the failure-counter cleanup are independent. The
+  // delete is skipped when there were no failures at all, so the common
+  // "correct password on first try" path does not pay for a KV write.
+  const [epoch] = await Promise.all([
+    getSessionEpoch(env),
+    failState.count > 0 ? clearLoginFailures(env, clientIp) : Promise.resolve(),
+  ]);
 
-  const epoch = await getSessionEpoch(env);
   const sessionId = crypto.randomUUID();
   await setSession(env, sessionId, "admin", epoch);
 

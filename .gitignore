@@ -38,3 +38,6 @@ npm-debug.log*
 
 # Vitest SSR cache (must stay writable; see vitest.config.ts)
 .tmp/
+
+# Vitest config re-evaluation timestamps
+vitest.config.ts.timestamp-*

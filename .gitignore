@@ -29,3 +29,6 @@ tsconfig.tsbuildinfo
 
 # Logs
 npm-debug.log*
+
+# Wrangler local state (OAuth login state, build tmp)
+.wrangler/

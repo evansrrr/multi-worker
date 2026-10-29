@@ -1,4 +1,7 @@
-name = "multi-worker-manager"
+# 必须与 Cloudflare Pages 项目的实际名称一致：wrangler 会用这里的 name
+# 作为不带 --project-name 时的部署目标。原先写的是 multi-worker-manager
+# （2 个月前的旧项目），导致部署落到旧入口、线上出现两个行为不一致的域名。
+name = "multi-worker"
 # 运行时兼容版本，跟随 Cloudflare 能力发布节奏（升级后需手测全流程）
 compatibility_date = "2026-10-01"
 pages_build_output_dir = "dist"

@@ -85,7 +85,7 @@ describe("hashPassword", () => {
     const parts = stored.split("$");
     expect(parts).toHaveLength(4);
     expect(parts[0]).toBe("pbkdf2");
-    expect(Number(parts[1])).toBe(210000);
+    expect(Number(parts[1])).toBe(100000);
     expect(fromBase64(parts[2])).toHaveLength(16); // 16-byte salt
     expect(fromBase64(parts[3])).toHaveLength(32); // 256-bit hash
   }, 30000);
@@ -209,7 +209,7 @@ describe("passwordNeedsUpgrade", () => {
   });
 
   it("reports pbkdf2 hashes as current", () => {
-    expect(passwordNeedsUpgrade("pbkdf2$210000$salt$hash")).toBe(false);
+    expect(passwordNeedsUpgrade("pbkdf2$100000$salt$hash")).toBe(false);
   });
 
   it("is consistent with verifyPassword for freshly hashed passwords", async () => {

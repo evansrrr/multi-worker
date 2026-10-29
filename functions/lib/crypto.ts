@@ -9,7 +9,12 @@ const dec = new TextDecoder();
 // Password hashing (PBKDF2-SHA256)
 // ---------------------------------------------------------------------------
 
-const PBKDF2_ITERATIONS = 210000;
+// Cloudflare Workers 的 WebCrypto 对 PBKDF2 迭代次数有 10 万次硬上限
+// （超出抛 "Pbkdf2 failed: iteration counts above 100000 are not supported"）。
+// 曾用 210000（OWASP 建议值），结果线上所有 PBKDF2 哈希既无法验证也无法
+// 生成——登录/改密全链路 500。取平台上限，配合登录限流（5 次/15 分钟）
+// 与单管理员威胁模型作为补偿。
+const PBKDF2_ITERATIONS = 100000;
 const PBKDF2_SALT_BYTES = 16;
 const PBKDF2_HASH_BITS = 256;
 

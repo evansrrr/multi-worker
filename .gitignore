@@ -32,3 +32,9 @@ npm-debug.log*
 
 # Wrangler local state (OAuth login state, build tmp)
 .wrangler/
+
+# Vitest SSR cache (must stay writable; see vitest.config.ts)
+.tmp/
+
+# Vitest SSR cache (must stay writable; see vitest.config.ts)
+.tmp/

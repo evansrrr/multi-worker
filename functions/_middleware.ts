@@ -26,14 +26,16 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   const pathname = url.pathname;
 
   try {
-    // Skip auth for non-API routes (static files)
+    // Skip auth for non-API routes (static files). The `await` matters:
+    // returning the promise directly would let a downstream rejection
+    // bypass this try/catch and surface as Cloudflare error 1101.
     if (!pathname.startsWith("/api/")) {
-      return context.next();
+      return await context.next();
     }
 
     // Skip auth for public auth routes
     if (PUBLIC_AUTH_ROUTES.includes(pathname)) {
-      return context.next();
+      return await context.next();
     }
 
     // Extract session cookie
@@ -63,12 +65,17 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     return await context.next();
   } catch (error) {
     console.error("API request failed:", error);
+    const detail =
+      error instanceof Error ? error.message : String(error);
     return new Response(
       JSON.stringify({
         success: false,
         error: {
           code: "INTERNAL_ERROR",
           message: "服务暂时不可用，请稍后重试",
+          // 单用户自管理工具：把异常摘要直接带给调用方，便于线上排查。
+          // 浏览器端的 readJsonSafely 会连同 HTTP 状态码一起展示。
+          detail,
         },
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }

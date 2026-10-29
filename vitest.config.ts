@@ -9,7 +9,6 @@ import { defineConfig } from "vitest/config";
 // 由主进程 spawn 的 worker 会继承该环境变量。
 process.env.TMP = process.env.TEMP = process.env.TMPDIR = join(
   process.cwd(),
-  "node_modules",
   ".tmp"
 );
 
@@ -25,5 +24,13 @@ export default defineConfig({
     // PBKDF2 hashing with the production iteration count is intentionally
     // slow; individual slow cases declare their own timeout.
     testTimeout: 20000,
+    // 单文件隔离 + 单线程：vitest 的 SSR 模块缓存写在 TMP 下，而本环境的
+    // fs 代理层对并发写入偶发 EPERM——并发越高越容易撞上，且撞上后该文件
+    // 的收集被静默中断（假绿：用例数变少但显示全过）。
+    fileParallelism: false,
+    pool: "forks",
+    poolOptions: {
+      forks: { singleFork: true },
+    },
   },
 });
